@@ -25,6 +25,7 @@ namespace PulseIO
         private Timer diskIoTimer;
         private Timer uptimeTimer;
         private Timer dateTimeTimer;
+        private Scheduler scheduler = new Scheduler();
 
         // ── Device state — keyed by PNPDeviceID ──────────────────────────
         private Dictionary<string, (string Name, DateTime ConnectedAt, uint ErrCode)>
@@ -50,10 +51,7 @@ namespace PulseIO
         private const int MAX_TRANSFER_ROWS = 300;
 
         // ── I/O Buffer ────────────────────────────────────────────────────
-        private readonly Queue<string> _logBuffer = new Queue<string>();
-        private readonly object _bufferLock = new object();
-        private const int BUFFER_FLUSH_THRESHOLD = 10;
-        private int _bufferFlushCount = 0;
+        private BufferManager _bufferManager;
         private Timer _bufferTimer;
 
         // ── Debounce for DBT_DEVNODES_CHANGED ────────────────────────────
@@ -67,6 +65,8 @@ namespace PulseIO
             ApplyModernTheme();
             InitializeDataGridViewColumns();
             CreateLogsAndReportsControls();
+            CreateStatusBarControls();
+            _bufferManager = new BufferManager(txtLogs, tsslBufferSize, tsslFlushCount, this);
             AttachEventHandlers();
 
             HideAllPanels();
@@ -648,7 +648,7 @@ namespace PulseIO
         private void AddDeviceLog(string msg)
         {
             if (txtLogs == null || txtLogs.IsDisposed) return;
-            BufferLog(msg);
+            _bufferManager.BufferLog(msg);
             if (txtReports != null && !txtReports.IsDisposed)
                 txtReports.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\r\n");
         }
@@ -656,7 +656,7 @@ namespace PulseIO
         private void AddDiskLog(string msg)
         {
             if (txtLogs == null || txtLogs.IsDisposed) return;
-            BufferLog(msg);
+            _bufferManager.BufferLog(msg);
         }
 
         // =================================================================
@@ -665,72 +665,8 @@ namespace PulseIO
         private void StartBufferTimer()
         {
             _bufferTimer = new Timer { Interval = 15_000 };
-            _bufferTimer.Tick += (s, e) => FlushBuffer(reason: "automatic");
+            _bufferTimer.Tick += (s, e) => _bufferManager.FlushBuffer(reason: "automatic");
             _bufferTimer.Start();
-        }
-
-        private void BufferLog(string msg)
-        {
-            string entry = $"[{DateTime.Now:HH:mm:ss}] {msg}";
-
-            bool shouldFlush = false;
-            lock (_bufferLock)
-            {
-                _logBuffer.Enqueue(entry);
-                if (_logBuffer.Count >= BUFFER_FLUSH_THRESHOLD)
-                    shouldFlush = true;
-            }
-
-            if (shouldFlush)
-                FlushBuffer(reason: "threshold");
-        }
-
-        private void FlushBuffer(string reason)
-        {
-            if (txtLogs == null || txtLogs.IsDisposed) return;
-
-            if (InvokeRequired)
-            {
-                BeginInvoke((MethodInvoker)(() => FlushBuffer(reason)));
-                return;
-            }
-
-            string[] lines;
-            int count;
-
-            lock (_bufferLock)
-            {
-                count = _logBuffer.Count;
-                if (count == 0) return;
-
-                lines = _logBuffer.ToArray();
-                _logBuffer.Clear();
-                _bufferFlushCount++;
-            }
-
-            var sb = new StringBuilder();
-
-            string reasonLabel = reason == "threshold"
-                ? $"Flushed {count} entries"
-                : "Automatic flush executed";
-
-            sb.AppendLine($"[BUFFER] ── {reasonLabel} ──────────────────");
-            foreach (string line in lines)
-                sb.AppendLine(line);
-            sb.AppendLine($"[BUFFER] ── End flush #{_bufferFlushCount} ─────────────────");
-            sb.AppendLine();
-
-            txtLogs.AppendText(sb.ToString());
-            UpdateBufferStats();
-        }
-
-        private void UpdateBufferStats()
-        {
-            if (tsslBufferSize == null || tsslFlushCount == null) return;
-            int currentSize;
-            lock (_bufferLock) { currentSize = _logBuffer.Count; }
-            tsslBufferSize.Text = $"Buffer: {currentSize}";
-            tsslFlushCount.Text = $"Flushes: {_bufferFlushCount}";
         }
 
         // =================================================================
@@ -894,7 +830,10 @@ namespace PulseIO
             btnSaveReport.Click += (s, e) => SaveReport();
             pnlMain.Controls.Add(btnSaveReport);
             btnSaveReport.BringToFront();
+        }
 
+        private void CreateStatusBarControls()
+        {
             // Buffer stats — live counters in the status bar (always visible, no panel needed)
             tsslBufferSize = new System.Windows.Forms.ToolStripStatusLabel
             {
