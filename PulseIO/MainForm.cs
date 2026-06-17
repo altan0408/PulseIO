@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Text;
 using System.Windows.Forms;
 
 namespace PulseIO
@@ -13,16 +14,19 @@ namespace PulseIO
         // ── Controls created in code ──────────────────────────────────────
         private TextBox txtLogs;
         private TextBox txtReports;
-        private Button btnSaveReport;   // Export Reports to .txt
+        private Button btnSaveReport;
+
+        // ── Status bar buffer labels ──────────────────────────────────────
+        private System.Windows.Forms.ToolStripStatusLabel tsslBufferSize;
+        private System.Windows.Forms.ToolStripStatusLabel tsslFlushCount;
 
         // ── Timers ────────────────────────────────────────────────────────
-        private Timer statsTimer;    // stat labels + fallback HID catch
-        private Timer diskIoTimer;   // polls real disk I/O
-        private Timer uptimeTimer;   // refreshes uptime column every 30s
+        private Timer statsTimer;
+        private Timer diskIoTimer;
+        private Timer uptimeTimer;
+        private Timer dateTimeTimer;
 
         // ── Device state — keyed by PNPDeviceID ──────────────────────────
-        // Key   = PNPDeviceID
-        // Value = (display name, connected-since DateTime, error code)
         private Dictionary<string, (string Name, DateTime ConnectedAt, uint ErrCode)>
             deviceCache = new Dictionary<string, (string, DateTime, uint)>();
 
@@ -45,6 +49,13 @@ namespace PulseIO
 
         private const int MAX_TRANSFER_ROWS = 300;
 
+        // ── I/O Buffer ────────────────────────────────────────────────────
+        private readonly Queue<string> _logBuffer = new Queue<string>();
+        private readonly object _bufferLock = new object();
+        private const int BUFFER_FLUSH_THRESHOLD = 10;
+        private int _bufferFlushCount = 0;
+        private Timer _bufferTimer;
+
         // ── Debounce for DBT_DEVNODES_CHANGED ────────────────────────────
         private System.Threading.Timer _hidDebounceTimer;
         private readonly object _hidLock = new object();
@@ -53,6 +64,7 @@ namespace PulseIO
         public MainForm()
         {
             InitializeComponent();
+            ApplyModernTheme();
             InitializeDataGridViewColumns();
             CreateLogsAndReportsControls();
             AttachEventHandlers();
@@ -62,7 +74,109 @@ namespace PulseIO
             StartStatsTimer();
             StartDiskIoMonitor();
             StartUptimeTimer();
+            StartBufferTimer();
+            StartDateTimeTimer();
             ShowDashboard();
+        }
+
+        // UI
+        private void ApplyModernTheme()
+        {
+            this.BackColor = Color.FromArgb(248, 250, 252);
+            this.Font = new Font("Segoe UI", 9F);
+
+            pnlHeader.BackColor = Color.White;
+
+            lblTitle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+            lblTitle.ForeColor = Color.FromArgb(30, 41, 59);
+
+            lblSubtitle.Font = new Font("Segoe UI", 10F);
+            lblSubtitle.ForeColor = Color.FromArgb(100, 116, 139);
+
+            lblDateTime.ForeColor = Color.FromArgb(100, 116, 139);
+            lblDateTime.TextAlign = ContentAlignment.MiddleRight;
+            lblDateTime.AutoSize = false;
+            lblDateTime.Width = 250;
+            lblDateTime.Height = 25;
+            lblDateTime.Left = pnlHeader.Width - 270;
+            lblDateTime.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            lblTitle.AutoSize = true;
+            lblSubtitle.AutoSize = true;
+
+            pnlNavigation.BackColor = Color.FromArgb(15, 23, 42);
+
+            StyleNavButton(btnDashboard);
+            StyleNavButton(btnDevices);
+            StyleNavButton(btnTransfers);
+            StyleNavButton(btnLogs);
+            StyleNavButton(btnReports);
+
+            lblOverview.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+            lblOverview.ForeColor = Color.FromArgb(30, 41, 59);
+
+            StyleCard(grpDeviceCount);
+            StyleCard(grpTransferCount);
+            StyleCard(grpSuccessCount);
+            StyleCard(grpFailedCount);
+
+            CenterStatLabel(lblDeviceCount);
+            CenterStatLabel(lblTransferCount);
+            CenterStatLabel(lblSuccessCount);
+            CenterStatLabel(lblFailedCount);
+
+            StyleGrid(dgvDevices);
+            StyleGrid(dgvTransfers);
+
+            statusStrip1.BackColor = Color.White;
+
+            pnlStatistics.WrapContents = false;
+            pnlStatistics.AutoScroll = false;
+
+            grpDeviceTable.Padding = new Padding(10);
+            grpTransferActivity.Padding = new Padding(10);
+
+            dgvDevices.Dock = DockStyle.Fill;
+            dgvTransfers.Dock = DockStyle.Fill;
+        }
+
+        private void StyleNavButton(Button btn)
+        {
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.Height = 55;
+            btn.BackColor = Color.FromArgb(15, 23, 42);
+            btn.ForeColor = Color.White;
+            btn.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btn.Cursor = Cursors.Hand;
+            btn.TextAlign = ContentAlignment.MiddleLeft;
+            btn.Padding = new Padding(15, 0, 0, 0);
+        }
+
+        private void StyleCard(GroupBox grp)
+        {
+            grp.BackColor = Color.White;
+            grp.ForeColor = Color.FromArgb(30, 41, 59);
+            grp.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        }
+
+        private void StyleGrid(DataGridView grid)
+        {
+            grid.BorderStyle = BorderStyle.None;
+            grid.BackgroundColor = Color.White;
+            grid.EnableHeadersVisualStyles = false;
+            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(30, 41, 59);
+            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            grid.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            grid.RowTemplate.Height = 30;
+            grid.RowHeadersVisible = false;
+        }
+
+        private void CenterStatLabel(Label lbl)
+        {
+            lbl.Dock = DockStyle.Fill;
+            lbl.TextAlign = ContentAlignment.MiddleCenter;
         }
 
         // =================================================================
@@ -202,14 +316,14 @@ namespace PulseIO
             }
             catch (Exception ex) { AddDiskLog("WMI error: " + ex.Message); return; }
 
-            // Deduplicate Bluetooth verbose sub-entries
             current = DeduplicateBluetooth(current);
+            current = DeduplicateCompositeChildren(current);
+            current = DeduplicatePhysicalDevices(current);
 
             var currentIds = new HashSet<string>(current.Keys);
             var cachedIds = new HashSet<string>(deviceCache.Keys);
             if (!forceRefresh && currentIds.SetEquals(cachedIds)) return;
 
-            // Preserve ConnectedAt for devices already in cache
             var newCache = new Dictionary<string, (string Name, DateTime ConnectedAt, uint ErrCode)>();
             foreach (var kv in current)
             {
@@ -218,6 +332,7 @@ namespace PulseIO
                     : DateTime.Now;
                 newCache[kv.Key] = (kv.Value.Name, connectedAt, kv.Value.ErrCode);
             }
+            AddDiskLog("Current device count from WMI: " + current.Count);
             deviceCache = newCache;
 
             RebuildDeviceGrid();
@@ -225,7 +340,6 @@ namespace PulseIO
             UpdateStats();
         }
 
-        // Rebuild dgvDevices from deviceCache, with uptime + color coding
         private void RebuildDeviceGrid()
         {
             dgvDevices.Rows.Clear();
@@ -236,7 +350,6 @@ namespace PulseIO
                 uint errCode = kv.Value.ErrCode;
                 string status = errCode == 22 ? "Disabled" : "Active";
 
-                // Uptime column — how long this device has been connected this session
                 TimeSpan uptime = DateTime.Now - kv.Value.ConnectedAt;
                 string uptimeStr = uptime.TotalMinutes < 1
                     ? $"{(int)uptime.TotalSeconds}s"
@@ -244,18 +357,15 @@ namespace PulseIO
                         ? $"{(int)uptime.TotalMinutes}m {uptime.Seconds:D2}s"
                         : $"{(int)uptime.TotalHours}h {uptime.Minutes:D2}m";
 
-                // Transfer rate: storage gets live MB/s (updated by PollDiskIo),
-                // HID/BT/WiFi are not bulk-transfer devices — show N/A
                 string xferRate = IsStorageType(type) ? "Idle" : "N/A";
 
                 int rowIdx = dgvDevices.Rows.Add(name, type, status, xferRate, uptimeStr);
 
-                // Color-code rows: disabled = yellow, active = green tint
                 var row = dgvDevices.Rows[rowIdx];
                 if (errCode == 22)
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 200); // yellow
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 200);
                 else
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220); // light green
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
             }
         }
 
@@ -276,6 +386,67 @@ namespace PulseIO
                 }
             return input.Where(kv => !remove.Contains(kv.Key))
                         .ToDictionary(kv => kv.Key, kv => kv.Value);
+        }
+
+        // Removes composite/parent PnP stubs when a more-specific child node
+        // for the same physical hardware is already in the set.
+        // Rule: if pnpIdA is a strict prefix of pnpIdB, remove A.
+        private Dictionary<string, (string Name, uint ErrCode)> DeduplicateCompositeChildren(
+            Dictionary<string, (string Name, uint ErrCode)> input)
+        {
+            var keys = input.Keys.ToList();
+            var remove = new HashSet<string>();
+
+            for (int i = 0; i < keys.Count; i++)
+            {
+                string a = keys[i].ToUpperInvariant();
+                for (int j = 0; j < keys.Count; j++)
+                {
+                    if (i == j) continue;
+                    string b = keys[j].ToUpperInvariant();
+                    // A is a parent stub of B — keep B (the more specific leaf), discard A
+                    if (b.StartsWith(a) && b.Length > a.Length)
+                    { remove.Add(keys[i]); break; }
+                }
+            }
+
+            return input
+                .Where(kv => !remove.Contains(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+        }
+
+        private Dictionary<string, (string Name, uint ErrCode)> DeduplicatePhysicalDevices(
+     Dictionary<string, (string Name, uint ErrCode)> input)
+        {
+            var result = new Dictionary<string, (string Name, uint ErrCode)>();
+
+            var groups = input.GroupBy(kv =>
+            {
+                string n = kv.Value.Name.ToLower();
+
+                if (n.Contains("keyboard"))
+                    return "keyboard";
+
+                if (n.Contains("mouse"))
+                    return "mouse";
+
+                if (n.Contains("airpods") ||
+                    n.Contains("headset") ||
+                    n.Contains("headphone") ||
+                    n.Contains("speaker"))
+                    return n;
+
+                return kv.Key;
+            });
+
+            foreach (var group in groups)
+            {
+                var first = group.First();
+
+                result[first.Key] = first.Value;
+            }
+
+            return result;
         }
 
         private string ClassifyDevice(string lower)
@@ -299,7 +470,7 @@ namespace PulseIO
         }
 
         // =================================================================
-        // UPTIME TIMER — refreshes Uptime column every 30s without full reload
+        // UPTIME TIMER
         // =================================================================
         private void StartUptimeTimer()
         {
@@ -308,7 +479,6 @@ namespace PulseIO
             {
                 foreach (DataGridViewRow row in dgvDevices.Rows)
                 {
-                    // Find matching cache entry by device name
                     string name = row.Cells["DeviceName"].Value?.ToString();
                     if (name == null) continue;
                     var entry = deviceCache.Values.FirstOrDefault(v => v.Name == name);
@@ -456,6 +626,20 @@ namespace PulseIO
             grpFailedCount.Text = "Idle Polls";
             lblSuccessCount.Text = active.ToString();
             lblFailedCount.Text = idle.ToString();
+
+            UpdateBufferStats();
+        }
+
+        // =================================================================
+        // DATE/TIME TIMER
+        // =================================================================
+        private void StartDateTimeTimer()
+        {
+            lblDateTime.Text = DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss");
+            dateTimeTimer = new Timer { Interval = 1000 };
+            dateTimeTimer.Tick += (s, e) =>
+                lblDateTime.Text = DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss");
+            dateTimeTimer.Start();
         }
 
         // =================================================================
@@ -464,20 +648,93 @@ namespace PulseIO
         private void AddDeviceLog(string msg)
         {
             if (txtLogs == null || txtLogs.IsDisposed) return;
-            string line = $"[{DateTime.Now:HH:mm:ss}] {msg}\r\n";
-            txtLogs.AppendText(line);
+            BufferLog(msg);
             if (txtReports != null && !txtReports.IsDisposed)
-                txtReports.AppendText(line);
+                txtReports.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\r\n");
         }
 
         private void AddDiskLog(string msg)
         {
             if (txtLogs == null || txtLogs.IsDisposed) return;
-            txtLogs.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\r\n");
+            BufferLog(msg);
         }
 
         // =================================================================
-        // REPORTS — session summary + export
+        // I/O BUFFER
+        // =================================================================
+        private void StartBufferTimer()
+        {
+            _bufferTimer = new Timer { Interval = 15_000 };
+            _bufferTimer.Tick += (s, e) => FlushBuffer(reason: "automatic");
+            _bufferTimer.Start();
+        }
+
+        private void BufferLog(string msg)
+        {
+            string entry = $"[{DateTime.Now:HH:mm:ss}] {msg}";
+
+            bool shouldFlush = false;
+            lock (_bufferLock)
+            {
+                _logBuffer.Enqueue(entry);
+                if (_logBuffer.Count >= BUFFER_FLUSH_THRESHOLD)
+                    shouldFlush = true;
+            }
+
+            if (shouldFlush)
+                FlushBuffer(reason: "threshold");
+        }
+
+        private void FlushBuffer(string reason)
+        {
+            if (txtLogs == null || txtLogs.IsDisposed) return;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke((MethodInvoker)(() => FlushBuffer(reason)));
+                return;
+            }
+
+            string[] lines;
+            int count;
+
+            lock (_bufferLock)
+            {
+                count = _logBuffer.Count;
+                if (count == 0) return;
+
+                lines = _logBuffer.ToArray();
+                _logBuffer.Clear();
+                _bufferFlushCount++;
+            }
+
+            var sb = new StringBuilder();
+
+            string reasonLabel = reason == "threshold"
+                ? $"Flushed {count} entries"
+                : "Automatic flush executed";
+
+            sb.AppendLine($"[BUFFER] ── {reasonLabel} ──────────────────");
+            foreach (string line in lines)
+                sb.AppendLine(line);
+            sb.AppendLine($"[BUFFER] ── End flush #{_bufferFlushCount} ─────────────────");
+            sb.AppendLine();
+
+            txtLogs.AppendText(sb.ToString());
+            UpdateBufferStats();
+        }
+
+        private void UpdateBufferStats()
+        {
+            if (tsslBufferSize == null || tsslFlushCount == null) return;
+            int currentSize;
+            lock (_bufferLock) { currentSize = _logBuffer.Count; }
+            tsslBufferSize.Text = $"Buffer: {currentSize}";
+            tsslFlushCount.Text = $"Flushes: {_bufferFlushCount}";
+        }
+
+        // =================================================================
+        // REPORTS
         // =================================================================
         private void RefreshReports()
         {
@@ -500,7 +757,6 @@ namespace PulseIO
                 $"  Device Event Log\r\n" +
                 $"──────────────────────────────────────\r\n";
 
-            // Preserve existing event log lines below the summary header
             string existing = txtReports.Text;
             int divider = existing.IndexOf("──────────────────────────────────────");
             string events = divider >= 0
@@ -510,7 +766,6 @@ namespace PulseIO
             txtReports.Text = summary + events;
         }
 
-        // Export session report to a .txt file
         private void SaveReport()
         {
             using (var dlg = new SaveFileDialog
@@ -578,7 +833,7 @@ namespace PulseIO
             HideAllPanels();
             RefreshReports();
             txtReports.Visible = true;
-            btnSaveReport.Visible = true;   // show Save button only on Reports tab
+            btnSaveReport.Visible = true;
         }
 
         // =================================================================
@@ -590,7 +845,7 @@ namespace PulseIO
             dgvDevices.Columns.Add("DeviceType", "Device Type");
             dgvDevices.Columns.Add("Status", "Status");
             dgvDevices.Columns.Add("TransferRate", "Transfer Rate");
-            dgvDevices.Columns.Add("Uptime", "Connected For"); // NEW
+            dgvDevices.Columns.Add("Uptime", "Connected For");
 
             dgvTransfers.Columns.Add("Disk", "Disk");
             dgvTransfers.Columns.Add("IoMethod", "I/O Method");
@@ -620,12 +875,11 @@ namespace PulseIO
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
                 Font = new Font("Consolas", 9f),
-                BackColor = Color.FromArgb(20, 20, 30),
-                ForeColor = Color.Cyan
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(30, 41, 59)
             };
             pnlMain.Controls.Add(txtReports);
 
-            // Save Report button — floats in bottom-right of pnlMain
             btnSaveReport = new Button
             {
                 Text = "💾  Save Report",
@@ -640,6 +894,29 @@ namespace PulseIO
             btnSaveReport.Click += (s, e) => SaveReport();
             pnlMain.Controls.Add(btnSaveReport);
             btnSaveReport.BringToFront();
+
+            // Buffer stats — live counters in the status bar (always visible, no panel needed)
+            tsslBufferSize = new System.Windows.Forms.ToolStripStatusLabel
+            {
+                Text = "Buffer: 0",
+                ForeColor = System.Drawing.Color.DimGray,
+                BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Left,
+                Margin = new System.Windows.Forms.Padding(8, 0, 4, 0)
+            };
+
+            tsslFlushCount = new System.Windows.Forms.ToolStripStatusLabel
+            {
+                Text = "Flushes: 0",
+                ForeColor = System.Drawing.Color.DimGray,
+                BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Left,
+                Margin = new System.Windows.Forms.Padding(4, 0, 0, 0)
+            };
+
+            statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[]
+            {
+                tsslBufferSize,
+                tsslFlushCount
+            });
         }
 
         private void AttachEventHandlers()
@@ -660,6 +937,8 @@ namespace PulseIO
             statsTimer?.Stop();
             diskIoTimer?.Stop();
             uptimeTimer?.Stop();
+            _bufferTimer?.Stop();
+            dateTimeTimer?.Stop();
             base.OnFormClosing(e);
         }
     }
