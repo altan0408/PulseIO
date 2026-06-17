@@ -14,6 +14,7 @@ namespace PulseIO
         // ── Controls created in code ──────────────────────────────────────
         private TextBox txtLogs;
         private TextBox txtReports;
+        private TextBox txtHistory;
         private Button btnSaveReport;
 
         // ── Status bar buffer labels ──────────────────────────────────────
@@ -54,6 +55,12 @@ namespace PulseIO
         private BufferManager _bufferManager;
         private Timer _bufferTimer;
 
+        // ── Device Manager ────────────────────────────────────────────────
+        private DeviceManager _deviceManager;
+
+        // History manager
+        private HistoryManager _historyManager;
+
         // ── Debounce for DBT_DEVNODES_CHANGED ────────────────────────────
         private System.Threading.Timer _hidDebounceTimer;
         private readonly object _hidLock = new object();
@@ -66,7 +73,19 @@ namespace PulseIO
             InitializeDataGridViewColumns();
             CreateLogsAndReportsControls();
             CreateStatusBarControls();
+
             _bufferManager = new BufferManager(txtLogs, tsslBufferSize, tsslFlushCount, this);
+            _deviceManager = new DeviceManager();
+            _historyManager = new HistoryManager();
+
+            // Initial history entry
+            _historyManager.AddHistory(
+                "Application",
+                "Started");
+
+            RefreshHistory();
+
+             
             AttachEventHandlers();
 
             HideAllPanels();
@@ -198,7 +217,16 @@ namespace PulseIO
                         int before = deviceCache.Count;
                         LoadConnectedDevices(forceRefresh: true);
                         int added = deviceCache.Count - before;
-                        if (added > 0) { _sessionConnects += added; AddDeviceLog($"▶ {added} device(s) connected"); RefreshReports(); }
+                        if (added > 0) { _sessionConnects += added;
+
+                            AddDeviceLog($"▶ {added} device(s) connected");
+
+                            _historyManager.AddHistory(
+                                $"{added} device(s)", 
+                                "Connected");
+                            RefreshHistory();
+
+                            RefreshReports(); }
                     }));
                 }, null, 600, System.Threading.Timeout.Infinite);
             }
@@ -209,7 +237,16 @@ namespace PulseIO
                     int before = deviceCache.Count;
                     LoadConnectedDevices(forceRefresh: true);
                     int removed = before - deviceCache.Count;
-                    if (removed > 0) { _sessionDisconnects += removed; AddDeviceLog($"◀ {removed} device(s) disconnected"); RefreshReports(); }
+                    if (removed > 0) { _sessionDisconnects += removed; 
+
+                        AddDeviceLog($"◀ {removed} device(s) disconnected"); 
+
+                        _historyManager.AddHistory(
+                            $"{removed} device(s)",
+                            "Disconnected");
+                        RefreshHistory();
+
+                        RefreshReports(); }
                 }));
             }
             else if (eventType == DBT_DEVNODES_CHANGED)
@@ -226,8 +263,25 @@ namespace PulseIO
                                 int before = deviceCache.Count;
                                 LoadConnectedDevices(forceRefresh: true);
                                 int delta = deviceCache.Count - before;
-                                if (delta > 0) { _sessionConnects += delta; AddDeviceLog($"▶ {delta} HID device(s) connected"); RefreshReports(); }
-                                if (delta < 0) { _sessionDisconnects += -delta; AddDeviceLog($"◀ {-delta} HID device(s) disconnected"); RefreshReports(); }
+                                if (delta > 0) { _sessionConnects += delta;
+                                    AddDeviceLog($"▶ {delta} HID device(s) connected");
+
+                                    _historyManager.AddHistory(
+                                        $"{delta} HID device(s)",
+                                        "Connected");
+                                    RefreshHistory();
+
+                                    RefreshReports(); }
+
+                                if (delta < 0) { _sessionDisconnects += -delta;
+                                    AddDeviceLog($"◀ {-delta} HID device(s) disconnected");
+
+                                    _historyManager.AddHistory(
+                                        $"{-delta} HID device(s)",
+                                        "Disconnected");
+                                    RefreshHistory();
+
+                                    RefreshReports(); }
                             }));
                         }, null, 800, System.Threading.Timeout.Infinite);
                     }
@@ -346,7 +400,7 @@ namespace PulseIO
             foreach (var kv in deviceCache)
             {
                 string name = kv.Value.Name;
-                string type = ClassifyDevice(name.ToLower());
+                string type = _deviceManager.ClassifyDevice(name.ToLower());
                 uint errCode = kv.Value.ErrCode;
                 string status = errCode == 22 ? "Disabled" : "Active";
 
@@ -449,25 +503,6 @@ namespace PulseIO
             return result;
         }
 
-        private string ClassifyDevice(string lower)
-        {
-            if (lower.Contains("mouse")) return "Mouse";
-            if (lower.Contains("keyboard")) return "Keyboard";
-            if (lower.Contains("disk") || lower.Contains("drive") || lower.Contains("storage"))
-                return "Storage";
-            if (lower.Contains("audio")) return "Audio";
-            if (lower.Contains("wi-fi") || lower.Contains("wifi") ||
-                lower.Contains("wireless") || lower.Contains("wlan") || lower.Contains("802.11"))
-                return "Wi-Fi";
-            if (lower.Contains("bluetooth") || lower.Contains("buds") ||
-                lower.Contains("wh-") || lower.Contains("wf-") ||
-                lower.Contains("airpods") || lower.Contains("jbl") ||
-                lower.Contains("headphone") || lower.Contains("headset"))
-                return "Bluetooth";
-            if (lower.Contains("hid")) return "HID";
-            if (lower.Contains("usb")) return "USB";
-            return "I/O Device";
-        }
 
         // =================================================================
         // UPTIME TIMER
@@ -626,8 +661,6 @@ namespace PulseIO
             grpFailedCount.Text = "Idle Polls";
             lblSuccessCount.Text = active.ToString();
             lblFailedCount.Text = idle.ToString();
-
-            UpdateBufferStats();
         }
 
         // =================================================================
@@ -719,6 +752,23 @@ namespace PulseIO
             }
         }
 
+        private void RefreshHistory()
+        {
+            if (txtHistory == null || txtHistory.IsDisposed)
+                return;
+
+            txtHistory.Clear();
+
+            foreach (var entry in _historyManager.GetHistory())
+            {
+                txtHistory.AppendText(
+                    $"[{entry.Timestamp:MM/dd/yyyy HH:mm:ss}] " +
+                    $"{entry.EventType} - {entry.DeviceName}" +
+                    Environment.NewLine);
+            }
+        }
+
+
         // =================================================================
         // TAB NAVIGATION
         // =================================================================
@@ -730,6 +780,7 @@ namespace PulseIO
             grpTransferActivity.Visible = false;
             txtLogs.Visible = false;
             txtReports.Visible = false;
+            txtHistory.Visible = false;
             btnSaveReport.Visible = false;
         }
 
@@ -770,6 +821,15 @@ namespace PulseIO
             RefreshReports();
             txtReports.Visible = true;
             btnSaveReport.Visible = true;
+        }
+
+        private void ShowHistory()
+        {
+            HideAllPanels();
+
+            RefreshHistory();
+
+            txtHistory.Visible = true;
         }
 
         // =================================================================
@@ -815,6 +875,19 @@ namespace PulseIO
                 ForeColor = Color.FromArgb(30, 41, 59)
             };
             pnlMain.Controls.Add(txtReports);
+
+
+            txtHistory = new TextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Dock = DockStyle.Fill,
+                Font = new Font("Consolas", 9f),
+                BackColor = Color.White,
+                ForeColor = Color.Black
+            };
+            pnlMain.Controls.Add(txtHistory);
 
             btnSaveReport = new Button
             {
