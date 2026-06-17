@@ -50,8 +50,15 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.VisualBasic" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CustomControls.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="DeviceDetailsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="HistoryEntry.cs" />
     <Compile Include="Managers\BufferManager.cs" />
     <Compile Include="Managers\DeviceManager.cs" />
