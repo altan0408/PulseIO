@@ -100,7 +100,7 @@ namespace PulseIO
             // Draw header text
             if (!string.IsNullOrEmpty(this.Text))
             {
-                using (var font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold))
+                using (var font = new Font("Segoe UI", 9.5F, FontStyle.Bold))
                 using (var brush = new SolidBrush(HeaderTextColor))
                 {
                     g.DrawString(this.Text, font, brush, new PointF(16, 12));

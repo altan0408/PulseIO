@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Management;
@@ -145,7 +146,7 @@ namespace PulseIO
 
             RefreshHistory();
 
-             
+
             AttachEventHandlers();
 
             HideAllPanels();
@@ -177,7 +178,7 @@ namespace PulseIO
 
             pnlMain.BackColor = ContentBg;
 
-            lblOverview.Font = new Font("Segoe UI Semibold", 18F, FontStyle.Bold);
+            lblOverview.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
             lblOverview.ForeColor = TextPrimary;
             lblOverview.Margin = new Padding(0, 0, 0, 4);
 
@@ -219,7 +220,7 @@ namespace PulseIO
                     e.Graphics.DrawLine(pen, 0, pnlHeader.Height - 1, pnlHeader.Width, pnlHeader.Height - 1);
             };
 
-            lblTitle.Font = new Font("Segoe UI Semibold", 20F, FontStyle.Bold);
+            lblTitle.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
             lblTitle.ForeColor = TextPrimary;
             lblTitle.AutoSize = true;
 
@@ -257,7 +258,7 @@ namespace PulseIO
             btn.Margin = new Padding(0, 0, 0, 6);
             btn.BackColor = SidebarBg;
             btn.ForeColor = Color.FromArgb(203, 213, 225);
-            btn.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            btn.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btn.Cursor = Cursors.Hand;
             btn.TextAlign = ContentAlignment.MiddleLeft;
             btn.Padding = new Padding(16, 0, 0, 0);
@@ -292,7 +293,7 @@ namespace PulseIO
         {
             grp.BackColor = CardBg;
             grp.ForeColor = TextMuted;
-            grp.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            grp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             grp.Padding = new Padding(16, 12, 16, 16);
             grp.Margin = new Padding(8, 0, 8, 0);
             if (!(grp is ModernCard))
@@ -303,7 +304,7 @@ namespace PulseIO
         {
             grp.BackColor = CardBg;
             grp.ForeColor = TextPrimary;
-            grp.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
+            grp.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             grp.Padding = new Padding(16, 8, 16, 16);
             grp.Margin = new Padding(0, 0, 0, 16);
             if (!(grp is ModernCard))
@@ -334,7 +335,7 @@ namespace PulseIO
             grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             grid.ColumnHeadersDefaultCellStyle.BackColor = GridHeaderBg;
             grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(12, 0, 8, 0);
             grid.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             grid.DefaultCellStyle.BackColor = CardBg;
@@ -357,7 +358,7 @@ namespace PulseIO
             lbl.Dock = DockStyle.Fill;
             lbl.TextAlign = ContentAlignment.MiddleCenter;
             lbl.AutoSize = false;
-            lbl.Font = new Font("Segoe UI Semibold", 32F, FontStyle.Bold);
+            lbl.Font = new Font("Segoe UI", 32F, FontStyle.Bold);
             lbl.ForeColor = accentColor;
         }
 
@@ -371,7 +372,7 @@ namespace PulseIO
             statusStrip1.RenderMode = ToolStripRenderMode.Professional;
 
             lblSystemStatus.ForeColor = AccentGreen;
-            lblSystemStatus.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            lblSystemStatus.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             lblSystemStatus.Margin = new Padding(4, 0, 12, 0);
         }
 
@@ -382,7 +383,7 @@ namespace PulseIO
             btn.FlatAppearance.MouseOverBackColor = hoverColor;
             btn.BackColor = backColor;
             btn.ForeColor = foreColor;
-            btn.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            btn.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             btn.Cursor = Cursors.Hand;
             btn.UseVisualStyleBackColor = false;
             btn.Padding = new Padding(12, 0, 12, 0);
@@ -407,16 +408,19 @@ namespace PulseIO
                         int before = deviceCache.Count;
                         LoadConnectedDevices(forceRefresh: true);
                         int added = deviceCache.Count - before;
-                        if (added > 0) { _sessionConnects += added;
+                        if (added > 0)
+                        {
+                            _sessionConnects += added;
 
                             AddDeviceLog($"▶ {added} device(s) connected");
 
                             _historyManager.AddHistory(
-                                $"{added} device(s)", 
+                                $"{added} device(s)",
                                 "Connected");
                             RefreshHistory();
 
-                            RefreshReports(); }
+                            RefreshReports();
+                        }
                     }));
                 }, null, 600, System.Threading.Timeout.Infinite);
             }
@@ -427,16 +431,19 @@ namespace PulseIO
                     int before = deviceCache.Count;
                     LoadConnectedDevices(forceRefresh: true);
                     int removed = before - deviceCache.Count;
-                    if (removed > 0) { _sessionDisconnects += removed; 
+                    if (removed > 0)
+                    {
+                        _sessionDisconnects += removed;
 
-                        AddDeviceLog($"◀ {removed} device(s) disconnected"); 
+                        AddDeviceLog($"◀ {removed} device(s) disconnected");
 
                         _historyManager.AddHistory(
                             $"{removed} device(s)",
                             "Disconnected");
                         RefreshHistory();
 
-                        RefreshReports(); }
+                        RefreshReports();
+                    }
                 }));
             }
             else if (eventType == DBT_DEVNODES_CHANGED)
@@ -453,7 +460,9 @@ namespace PulseIO
                                 int before = deviceCache.Count;
                                 LoadConnectedDevices(forceRefresh: true);
                                 int delta = deviceCache.Count - before;
-                                if (delta > 0) { _sessionConnects += delta;
+                                if (delta > 0)
+                                {
+                                    _sessionConnects += delta;
                                     AddDeviceLog($"▶ {delta} HID device(s) connected");
 
                                     _historyManager.AddHistory(
@@ -461,9 +470,12 @@ namespace PulseIO
                                         "Connected");
                                     RefreshHistory();
 
-                                    RefreshReports(); }
+                                    RefreshReports();
+                                }
 
-                                if (delta < 0) { _sessionDisconnects += -delta;
+                                if (delta < 0)
+                                {
+                                    _sessionDisconnects += -delta;
                                     AddDeviceLog($"◀ {-delta} HID device(s) disconnected");
 
                                     _historyManager.AddHistory(
@@ -471,7 +483,8 @@ namespace PulseIO
                                         "Disconnected");
                                     RefreshHistory();
 
-                                    RefreshReports(); }
+                                    RefreshReports();
+                                }
                             }));
                         }, null, 800, System.Threading.Timeout.Infinite);
                     }
@@ -996,6 +1009,9 @@ namespace PulseIO
             btnClearHistory.Visible = false;
             if (btnExportHistory != null) btnExportHistory.Visible = false;
             if (grpSystemHealth != null) grpSystemHealth.Visible = false;
+            if (pnlLogsContainer != null) pnlLogsContainer.Visible = false;
+            if (pnlReportsContainer != null) pnlReportsContainer.Visible = false;
+            if (pnlHistoryContainer != null) pnlHistoryContainer.Visible = false;
         }
 
         private void ShowDashboard()
@@ -1007,7 +1023,7 @@ namespace PulseIO
             if (grpSystemHealth != null) grpSystemHealth.Visible = true;
             grpDeviceTable.Visible = true;
             grpTransferActivity.Visible = true;
-            
+
             grpDeviceTable.Dock = DockStyle.Top;
             grpTransferActivity.Dock = DockStyle.Top;
             if (grpSystemHealth != null) grpSystemHealth.Dock = DockStyle.Top;
@@ -1040,6 +1056,7 @@ namespace PulseIO
         {
             HideAllPanels();
             SetActiveNavButton(btnLogs);
+            pnlLogsContainer.Visible = true;
             txtLogs.Visible = true;
         }
 
@@ -1048,6 +1065,7 @@ namespace PulseIO
             HideAllPanels();
             SetActiveNavButton(btnReports);
             RefreshReports();
+            pnlReportsContainer.Visible = true;
             txtReports.Visible = true;
             btnSaveReport.Visible = true;
         }
@@ -1057,6 +1075,7 @@ namespace PulseIO
             HideAllPanels();
             SetActiveNavButton(btnHistory);
             RefreshHistory();
+            pnlHistoryContainer.Visible = true;
             txtHistory.Visible = true;
             btnClearHistory.Visible = true;
             if (btnExportHistory != null) btnExportHistory.Visible = true;
@@ -1197,7 +1216,7 @@ namespace PulseIO
             pnlHistoryContainer.Controls.Add(pnlHistoryWrapper);
             pnlHistoryContainer.Controls.Add(pnlHistoryBottom);
             pnlMain.Controls.Add(pnlHistoryContainer);
-    }
+        }
         private void CreateStatusBarControls()
         {
             // Buffer stats — live counters in the status bar (always visible, no panel needed)
@@ -1288,7 +1307,7 @@ namespace PulseIO
             grpRamUsage.Controls.Add(lblRamUsage);
             StyleCard(grpRamUsage);
             StyleStatLabel(lblRamUsage, AccentBlue);
-            lblRamUsage.Font = new Font("Segoe UI Semibold", 18F, FontStyle.Bold);
+            lblRamUsage.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
 
             pnlStatistics.Controls.Add(grpCpuUsage);
             pnlStatistics.Controls.Add(grpRamUsage);
@@ -1303,7 +1322,7 @@ namespace PulseIO
             lblSearchDevices = new Label
             {
                 Text = "Search Devices:",
-                Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 ForeColor = TextMuted,
                 Size = new Size(110, 20),
                 Location = new Point(580, 25),
@@ -1317,7 +1336,7 @@ namespace PulseIO
                 Location = new Point(700, 22),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
-            
+
             txtSearchDevices.TextChanged += (s, e) => RebuildDeviceGrid();
 
             pnlHeader.Controls.Add(lblSearchDevices);
@@ -1364,11 +1383,11 @@ namespace PulseIO
         private Panel CreateHealthPanel(string title, out Label valLabel, Color valColor)
         {
             var pnl = new Panel { Dock = DockStyle.Fill };
-            
+
             var lblTitleText = new Label
             {
                 Text = title,
-                Font = new Font("Segoe UI Semibold", 8F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 ForeColor = TextMuted,
                 Location = new Point(10, 10),
                 AutoSize = true
@@ -1377,7 +1396,7 @@ namespace PulseIO
             valLabel = new Label
             {
                 Text = "--",
-                Font = new Font("Segoe UI Semibold", 14F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = valColor,
                 Location = new Point(10, 26),
                 AutoSize = true
@@ -1397,7 +1416,7 @@ namespace PulseIO
 
             int y = pnlMain.ClientSize.Height - buttonHeight - bottomMargin;
             int xClear = pnlMain.ClientSize.Width - buttonWidth - rightMargin;
-            int xExport = xClear - buttonWidth - 12; 
+            int xExport = xClear - buttonWidth - 12;
             int xSaveReport = pnlMain.ClientSize.Width - buttonWidth - rightMargin;
 
             if (btnClearHistory != null) btnClearHistory.Location = new Point(xClear, y);
@@ -1456,8 +1475,8 @@ namespace PulseIO
 
             var cachedEntry = deviceCache.FirstOrDefault(kv => kv.Value.Name == deviceName);
             string pnpId = cachedEntry.Key ?? "N/A";
-            DateTime connectedAt = cachedEntry.Value.ConnectedAt != default 
-                ? cachedEntry.Value.ConnectedAt 
+            DateTime connectedAt = cachedEntry.Value.ConnectedAt != default
+                ? cachedEntry.Value.ConnectedAt
                 : DateTime.Now;
             uint errCode = cachedEntry.Value.ErrCode;
             string status = errCode == 22 ? "Disabled" : "Active";
@@ -1592,7 +1611,7 @@ namespace PulseIO
                 }
 
                 // Title
-                using (var font = new Font("Segoe UI Semibold", 16F, FontStyle.Bold))
+                using (var font = new Font("Segoe UI", 16F, FontStyle.Bold))
                 using (var brush = new SolidBrush(Color.White))
                 {
                     g.DrawString("PulseIO", font, brush, new PointF(80, 24));
