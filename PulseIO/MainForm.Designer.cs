@@ -81,8 +81,8 @@ namespace PulseIO
             this.pnlHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.pnlHeader.Location = new System.Drawing.Point(0, 0);
             this.pnlHeader.Name = "pnlHeader";
-            this.pnlHeader.Padding = new System.Windows.Forms.Padding(24, 16, 24, 16);
-            this.pnlHeader.Size = new System.Drawing.Size(1200, 72);
+            this.pnlHeader.Padding = new System.Windows.Forms.Padding(24, 8, 24, 8);
+            this.pnlHeader.Size = new System.Drawing.Size(1200, 52);
             this.pnlHeader.TabIndex = 0;
             // 
             // lblDateTime
@@ -90,7 +90,7 @@ namespace PulseIO
             this.lblDateTime.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lblDateTime.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.lblDateTime.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
-            this.lblDateTime.Location = new System.Drawing.Point(916, 22);
+            this.lblDateTime.Location = new System.Drawing.Point(916, 12);
             this.lblDateTime.Name = "lblDateTime";
             this.lblDateTime.Size = new System.Drawing.Size(260, 28);
             this.lblDateTime.TabIndex = 2;
@@ -100,9 +100,9 @@ namespace PulseIO
             // lblSubtitle
             // 
             this.lblSubtitle.AutoSize = true;
-            this.lblSubtitle.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.lblSubtitle.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblSubtitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
-            this.lblSubtitle.Location = new System.Drawing.Point(27, 40);
+            this.lblSubtitle.Location = new System.Drawing.Point(27, 29);
             this.lblSubtitle.Name = "lblSubtitle";
             this.lblSubtitle.Size = new System.Drawing.Size(291, 19);
             this.lblSubtitle.TabIndex = 1;
@@ -111,9 +111,9 @@ namespace PulseIO
             // lblTitle
             // 
             this.lblTitle.AutoSize = true;
-            this.lblTitle.Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold);
+            this.lblTitle.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold);
             this.lblTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-            this.lblTitle.Location = new System.Drawing.Point(24, 12);
+            this.lblTitle.Location = new System.Drawing.Point(24, 7);
             this.lblTitle.Name = "lblTitle";
             this.lblTitle.Size = new System.Drawing.Size(99, 37);
             this.lblTitle.TabIndex = 0;
@@ -129,10 +129,10 @@ namespace PulseIO
             this.pnlNavigation.Controls.Add(this.btnDevices);
             this.pnlNavigation.Controls.Add(this.btnDashboard);
             this.pnlNavigation.Dock = System.Windows.Forms.DockStyle.Left;
-            this.pnlNavigation.Location = new System.Drawing.Point(0, 72);
+            this.pnlNavigation.Location = new System.Drawing.Point(0, 52);
             this.pnlNavigation.Name = "pnlNavigation";
-            this.pnlNavigation.Padding = new System.Windows.Forms.Padding(12, 20, 12, 12);
-            this.pnlNavigation.Size = new System.Drawing.Size(220, 577);
+            this.pnlNavigation.Padding = new System.Windows.Forms.Padding(12, 12, 12, 12);
+            this.pnlNavigation.Size = new System.Drawing.Size(220, 597);
             this.pnlNavigation.TabIndex = 1;
             // 
             // btnHistory
@@ -142,11 +142,11 @@ namespace PulseIO
             this.btnHistory.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnHistory.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnHistory.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
-            this.btnHistory.Location = new System.Drawing.Point(12, 250);
-            this.btnHistory.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.btnHistory.Location = new System.Drawing.Point(12, 240);
+            this.btnHistory.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.btnHistory.Name = "btnHistory";
             this.btnHistory.Padding = new System.Windows.Forms.Padding(16, 0, 0, 0);
-            this.btnHistory.Size = new System.Drawing.Size(196, 46);
+            this.btnHistory.Size = new System.Drawing.Size(196, 40);
             this.btnHistory.TabIndex = 5;
             this.btnHistory.Text = "History";
             this.btnHistory.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -159,11 +159,11 @@ namespace PulseIO
             this.btnReports.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnReports.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnReports.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
-            this.btnReports.Location = new System.Drawing.Point(12, 204);
-            this.btnReports.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.btnReports.Location = new System.Drawing.Point(12, 196);
+            this.btnReports.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.btnReports.Name = "btnReports";
             this.btnReports.Padding = new System.Windows.Forms.Padding(16, 0, 0, 0);
-            this.btnReports.Size = new System.Drawing.Size(196, 46);
+            this.btnReports.Size = new System.Drawing.Size(196, 40);
             this.btnReports.TabIndex = 4;
             this.btnReports.Text = "Reports";
             this.btnReports.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -176,11 +176,11 @@ namespace PulseIO
             this.btnLogs.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnLogs.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnLogs.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
-            this.btnLogs.Location = new System.Drawing.Point(12, 158);
-            this.btnLogs.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.btnLogs.Location = new System.Drawing.Point(12, 152);
+            this.btnLogs.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.btnLogs.Name = "btnLogs";
             this.btnLogs.Padding = new System.Windows.Forms.Padding(16, 0, 0, 0);
-            this.btnLogs.Size = new System.Drawing.Size(196, 46);
+            this.btnLogs.Size = new System.Drawing.Size(196, 40);
             this.btnLogs.TabIndex = 3;
             this.btnLogs.Text = "Logs";
             this.btnLogs.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -193,11 +193,11 @@ namespace PulseIO
             this.btnTransfers.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnTransfers.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnTransfers.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
-            this.btnTransfers.Location = new System.Drawing.Point(12, 112);
-            this.btnTransfers.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.btnTransfers.Location = new System.Drawing.Point(12, 108);
+            this.btnTransfers.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.btnTransfers.Name = "btnTransfers";
             this.btnTransfers.Padding = new System.Windows.Forms.Padding(16, 0, 0, 0);
-            this.btnTransfers.Size = new System.Drawing.Size(196, 46);
+            this.btnTransfers.Size = new System.Drawing.Size(196, 40);
             this.btnTransfers.TabIndex = 2;
             this.btnTransfers.Text = "Transfers";
             this.btnTransfers.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -210,11 +210,11 @@ namespace PulseIO
             this.btnDevices.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDevices.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnDevices.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
-            this.btnDevices.Location = new System.Drawing.Point(12, 66);
-            this.btnDevices.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.btnDevices.Location = new System.Drawing.Point(12, 64);
+            this.btnDevices.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.btnDevices.Name = "btnDevices";
             this.btnDevices.Padding = new System.Windows.Forms.Padding(16, 0, 0, 0);
-            this.btnDevices.Size = new System.Drawing.Size(196, 46);
+            this.btnDevices.Size = new System.Drawing.Size(196, 40);
             this.btnDevices.TabIndex = 1;
             this.btnDevices.Text = "Devices";
             this.btnDevices.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -228,10 +228,10 @@ namespace PulseIO
             this.btnDashboard.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnDashboard.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
             this.btnDashboard.Location = new System.Drawing.Point(12, 20);
-            this.btnDashboard.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.btnDashboard.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.btnDashboard.Name = "btnDashboard";
             this.btnDashboard.Padding = new System.Windows.Forms.Padding(16, 0, 0, 0);
-            this.btnDashboard.Size = new System.Drawing.Size(196, 46);
+            this.btnDashboard.Size = new System.Drawing.Size(196, 40);
             this.btnDashboard.TabIndex = 0;
             this.btnDashboard.Text = "Dashboard";
             this.btnDashboard.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -247,10 +247,10 @@ namespace PulseIO
             this.pnlMain.Controls.Add(this.pnlStatistics);
             this.pnlMain.Controls.Add(this.lblOverview);
             this.pnlMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlMain.Location = new System.Drawing.Point(220, 72);
+            this.pnlMain.Location = new System.Drawing.Point(220, 52);
             this.pnlMain.Name = "pnlMain";
             this.pnlMain.Padding = new System.Windows.Forms.Padding(24, 20, 24, 24);
-            this.pnlMain.Size = new System.Drawing.Size(980, 577);
+            this.pnlMain.Size = new System.Drawing.Size(980, 597);
             this.pnlMain.TabIndex = 2;
             // 
             // grpTransferActivity
@@ -350,7 +350,7 @@ namespace PulseIO
             this.grpDeviceCount.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.grpDeviceCount.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
             this.grpDeviceCount.Location = new System.Drawing.Point(0, 8);
-            this.grpDeviceCount.Margin = new System.Windows.Forms.Padding(0, 4, 16, 4);
+            this.grpDeviceCount.Margin = new System.Windows.Forms.Padding(0, 6, 20, 6);
             this.grpDeviceCount.Name = "grpDeviceCount";
             this.grpDeviceCount.Padding = new System.Windows.Forms.Padding(16, 12, 16, 16);
             this.grpDeviceCount.Size = new System.Drawing.Size(221, 120);
@@ -376,7 +376,7 @@ namespace PulseIO
             this.grpTransferCount.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.grpTransferCount.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
             this.grpTransferCount.Location = new System.Drawing.Point(237, 8);
-            this.grpTransferCount.Margin = new System.Windows.Forms.Padding(0, 4, 16, 4);
+            this.grpTransferCount.Margin = new System.Windows.Forms.Padding(0, 6, 20, 6);
             this.grpTransferCount.Name = "grpTransferCount";
             this.grpTransferCount.Padding = new System.Windows.Forms.Padding(16, 12, 16, 16);
             this.grpTransferCount.Size = new System.Drawing.Size(221, 120);
@@ -402,7 +402,7 @@ namespace PulseIO
             this.grpSuccessCount.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.grpSuccessCount.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
             this.grpSuccessCount.Location = new System.Drawing.Point(474, 8);
-            this.grpSuccessCount.Margin = new System.Windows.Forms.Padding(0, 4, 16, 4);
+            this.grpSuccessCount.Margin = new System.Windows.Forms.Padding(0, 6, 20, 6);
             this.grpSuccessCount.Name = "grpSuccessCount";
             this.grpSuccessCount.Padding = new System.Windows.Forms.Padding(16, 12, 16, 16);
             this.grpSuccessCount.Size = new System.Drawing.Size(221, 120);
@@ -428,7 +428,7 @@ namespace PulseIO
             this.grpFailedCount.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.grpFailedCount.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
             this.grpFailedCount.Location = new System.Drawing.Point(711, 8);
-            this.grpFailedCount.Margin = new System.Windows.Forms.Padding(0, 4, 0, 4);
+            this.grpFailedCount.Margin = new System.Windows.Forms.Padding(0, 6, 0, 6);
             this.grpFailedCount.Name = "grpFailedCount";
             this.grpFailedCount.Padding = new System.Windows.Forms.Padding(16, 12, 16, 16);
             this.grpFailedCount.Size = new System.Drawing.Size(221, 120);
