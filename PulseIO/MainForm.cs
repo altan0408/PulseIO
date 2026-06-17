@@ -1,9 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
@@ -15,7 +18,39 @@ namespace PulseIO
         private TextBox txtLogs;
         private TextBox txtReports;
         private TextBox txtHistory;
-        private Button btnSaveReport;
+        private ModernButton btnSaveReport;
+        private ModernButton btnClearHistory;
+        private ModernButton btnExportHistory;
+
+        // ── View Containers and Wrapper Panels ────────────────────────────
+        private Panel pnlLogsContainer;
+        private Panel pnlReportsContainer;
+        private Panel pnlHistoryContainer;
+        private RoundedPanel pnlLogsWrapper;
+        private RoundedPanel pnlReportsWrapper;
+        private RoundedPanel pnlHistoryWrapper;
+        private Panel pnlReportsBottom;
+        private Panel pnlHistoryBottom;
+
+        // ── CPU & RAM Usage Cards ─────────────────────────────────────────
+        private ModernCard grpCpuUsage;
+        private Label lblCpuUsage;
+        private ModernCard grpRamUsage;
+        private Label lblRamUsage;
+
+        // ── Dashboard System Health Section ───────────────────────────────
+        private ModernCard grpSystemHealth;
+        private Label lblHealthCpuVal;
+        private Label lblHealthRamVal;
+        private Label lblHealthDevicesVal;
+        private Label lblHealthTransfersVal;
+
+        // ── Device Search Controls ────────────────────────────────────────
+        private TextBox txtSearchDevices;
+        private Label lblSearchDevices;
+
+        // ── System Performance Monitoring ─────────────────────────────────
+        private PerformanceCounter cpuCounter;
 
         // ── Status bar buffer labels ──────────────────────────────────────
         private System.Windows.Forms.ToolStripStatusLabel tsslBufferSize;
@@ -65,6 +100,26 @@ namespace PulseIO
         private System.Threading.Timer _hidDebounceTimer;
         private readonly object _hidLock = new object();
 
+        // ── Theme palette (UI only) ─────────────────────────────────────
+        private static readonly Color SidebarBg = Color.FromArgb(15, 23, 42);
+        private static readonly Color SidebarHover = Color.FromArgb(30, 41, 59);
+        private static readonly Color SidebarActive = Color.FromArgb(51, 65, 85);
+        private static readonly Color ContentBg = Color.FromArgb(241, 245, 249);
+        private static readonly Color CardBg = Color.White;
+        private static readonly Color TextPrimary = Color.FromArgb(30, 41, 59);
+        private static readonly Color TextMuted = Color.FromArgb(100, 116, 139);
+        private static readonly Color BorderSubtle = Color.FromArgb(226, 232, 240);
+        private static readonly Color GridHeaderBg = Color.FromArgb(30, 41, 59);
+        private static readonly Color GridAltRow = Color.FromArgb(248, 250, 252);
+        private static readonly Color GridSelectionBg = Color.FromArgb(219, 234, 254);
+        private static readonly Color GridSelectionFg = Color.FromArgb(30, 41, 59);
+        private static readonly Color AccentBlue = Color.FromArgb(37, 99, 235);
+        private static readonly Color AccentViolet = Color.FromArgb(124, 58, 237);
+        private static readonly Color AccentGreen = Color.FromArgb(22, 163, 74);
+        private static readonly Color AccentAmber = Color.FromArgb(217, 119, 6);
+
+        private Button _activeNavButton;
+
         // =================================================================
         public MainForm()
         {
@@ -73,6 +128,12 @@ namespace PulseIO
             InitializeDataGridViewColumns();
             CreateLogsAndReportsControls();
             CreateStatusBarControls();
+
+            InitializePerformanceCounters();
+            CreateCpuRamCards();
+            CreateSearchControls();
+            CreateSystemHealthSection();
+            CreateBrandingLogo();
 
             _bufferManager = new BufferManager(txtLogs, tsslBufferSize, tsslFlushCount, this);
             _deviceManager = new DeviceManager();
@@ -85,7 +146,7 @@ namespace PulseIO
 
             RefreshHistory();
 
-             
+
             AttachEventHandlers();
 
             HideAllPanels();
@@ -101,101 +162,231 @@ namespace PulseIO
         // UI
         private void ApplyModernTheme()
         {
-            this.BackColor = Color.FromArgb(248, 250, 252);
-            this.Font = new Font("Segoe UI", 9F);
+            this.BackColor = ContentBg;
+            this.Font = new Font("Segoe UI", 9.75F);
 
-            pnlHeader.BackColor = Color.White;
-
-            lblTitle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
-            lblTitle.ForeColor = Color.FromArgb(30, 41, 59);
-
-            lblSubtitle.Font = new Font("Segoe UI", 10F);
-            lblSubtitle.ForeColor = Color.FromArgb(100, 116, 139);
-
-            lblDateTime.ForeColor = Color.FromArgb(100, 116, 139);
-            lblDateTime.TextAlign = ContentAlignment.MiddleRight;
-            lblDateTime.AutoSize = false;
-            lblDateTime.Width = 250;
-            lblDateTime.Height = 25;
-            lblDateTime.Left = pnlHeader.Width - 270;
-            lblDateTime.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-
-            lblTitle.AutoSize = true;
-            lblSubtitle.AutoSize = true;
-
-            pnlNavigation.BackColor = Color.FromArgb(15, 23, 42);
+            StyleHeaderPanel();
+            StyleSidebar();
 
             StyleNavButton(btnDashboard);
             StyleNavButton(btnDevices);
             StyleNavButton(btnTransfers);
             StyleNavButton(btnLogs);
             StyleNavButton(btnReports);
+            StyleNavButton(btnHistory);
+            SetActiveNavButton(btnDashboard);
 
-            lblOverview.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
-            lblOverview.ForeColor = Color.FromArgb(30, 41, 59);
+            pnlMain.BackColor = ContentBg;
+
+            lblOverview.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+            lblOverview.ForeColor = TextPrimary;
+            lblOverview.Margin = new Padding(0, 0, 0, 4);
 
             StyleCard(grpDeviceCount);
             StyleCard(grpTransferCount);
             StyleCard(grpSuccessCount);
             StyleCard(grpFailedCount);
 
-            CenterStatLabel(lblDeviceCount);
-            CenterStatLabel(lblTransferCount);
-            CenterStatLabel(lblSuccessCount);
-            CenterStatLabel(lblFailedCount);
+            StyleStatLabel(lblDeviceCount, AccentBlue);
+            StyleStatLabel(lblTransferCount, AccentViolet);
+            StyleStatLabel(lblSuccessCount, AccentGreen);
+            StyleStatLabel(lblFailedCount, AccentAmber);
+
+            StyleContentGroupBox(grpDeviceTable);
+            StyleContentGroupBox(grpTransferActivity);
 
             StyleGrid(dgvDevices);
             StyleGrid(dgvTransfers);
 
-            statusStrip1.BackColor = Color.White;
+            StyleStatusStrip();
 
             pnlStatistics.WrapContents = false;
             pnlStatistics.AutoScroll = false;
+            pnlStatistics.BackColor = Color.Transparent;
 
-            grpDeviceTable.Padding = new Padding(10);
-            grpTransferActivity.Padding = new Padding(10);
+            pnlSeparator.BackColor = BorderSubtle;
 
             dgvDevices.Dock = DockStyle.Fill;
             dgvTransfers.Dock = DockStyle.Fill;
+        }
+
+        private void StyleHeaderPanel()
+        {
+            pnlHeader.BackColor = CardBg;
+            pnlHeader.Padding = new Padding(24, 16, 24, 16);
+            pnlHeader.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(BorderSubtle))
+                    e.Graphics.DrawLine(pen, 0, pnlHeader.Height - 1, pnlHeader.Width, pnlHeader.Height - 1);
+            };
+
+            lblTitle.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
+            lblTitle.ForeColor = TextPrimary;
+            lblTitle.AutoSize = true;
+
+            lblSubtitle.Font = new Font("Segoe UI", 10F);
+            lblSubtitle.ForeColor = TextMuted;
+            lblSubtitle.AutoSize = true;
+
+            lblDateTime.Font = new Font("Segoe UI", 10F);
+            lblDateTime.ForeColor = TextMuted;
+            lblDateTime.TextAlign = ContentAlignment.MiddleRight;
+            lblDateTime.AutoSize = false;
+            lblDateTime.Width = 260;
+            lblDateTime.Height = 28;
+            lblDateTime.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        }
+
+        private void StyleSidebar()
+        {
+            pnlNavigation.BackColor = SidebarBg;
+            pnlNavigation.Padding = new Padding(12, 20, 12, 12);
+            pnlNavigation.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(30, 41, 59)))
+                    e.Graphics.DrawLine(pen, pnlNavigation.Width - 1, 0, pnlNavigation.Width - 1, pnlNavigation.Height);
+            };
         }
 
         private void StyleNavButton(Button btn)
         {
             btn.FlatStyle = FlatStyle.Flat;
             btn.FlatAppearance.BorderSize = 0;
-            btn.Height = 55;
-            btn.BackColor = Color.FromArgb(15, 23, 42);
-            btn.ForeColor = Color.White;
+            btn.FlatAppearance.MouseOverBackColor = SidebarHover;
+            btn.FlatAppearance.MouseDownBackColor = SidebarActive;
+            btn.Height = 46;
+            btn.Margin = new Padding(0, 0, 0, 6);
+            btn.BackColor = SidebarBg;
+            btn.ForeColor = Color.FromArgb(203, 213, 225);
             btn.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btn.Cursor = Cursors.Hand;
             btn.TextAlign = ContentAlignment.MiddleLeft;
-            btn.Padding = new Padding(15, 0, 0, 0);
+            btn.Padding = new Padding(16, 0, 0, 0);
+            btn.UseVisualStyleBackColor = false;
+
+            btn.MouseEnter += (s, e) =>
+            {
+                if (btn != _activeNavButton)
+                    btn.BackColor = SidebarHover;
+            };
+            btn.MouseLeave += (s, e) =>
+            {
+                if (btn != _activeNavButton)
+                    btn.BackColor = SidebarBg;
+            };
+        }
+
+        private void SetActiveNavButton(Button active)
+        {
+            if (_activeNavButton != null)
+            {
+                _activeNavButton.BackColor = SidebarBg;
+                _activeNavButton.ForeColor = Color.FromArgb(203, 213, 225);
+            }
+
+            _activeNavButton = active;
+            _activeNavButton.BackColor = SidebarActive;
+            _activeNavButton.ForeColor = Color.White;
         }
 
         private void StyleCard(GroupBox grp)
         {
-            grp.BackColor = Color.White;
-            grp.ForeColor = Color.FromArgb(30, 41, 59);
-            grp.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            grp.BackColor = CardBg;
+            grp.ForeColor = TextMuted;
+            grp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            grp.Padding = new Padding(16, 12, 16, 16);
+            grp.Margin = new Padding(8, 0, 8, 0);
+            if (!(grp is ModernCard))
+                ApplyFlatGroupBoxPaint(grp);
+        }
+
+        private void StyleContentGroupBox(GroupBox grp)
+        {
+            grp.BackColor = CardBg;
+            grp.ForeColor = TextPrimary;
+            grp.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            grp.Padding = new Padding(16, 8, 16, 16);
+            grp.Margin = new Padding(0, 0, 0, 16);
+            if (!(grp is ModernCard))
+                ApplyFlatGroupBoxPaint(grp);
+        }
+
+        private void ApplyFlatGroupBoxPaint(GroupBox grp)
+        {
+            grp.Paint += (s, e) =>
+            {
+                var box = (GroupBox)s;
+                var titleHeight = (int)e.Graphics.MeasureString(box.Text, box.Font).Height;
+                var bounds = new Rectangle(0, titleHeight / 2, box.Width - 1, box.Height - titleHeight / 2 - 1);
+                using (var borderPen = new Pen(BorderSubtle))
+                    e.Graphics.DrawRectangle(borderPen, bounds);
+            };
         }
 
         private void StyleGrid(DataGridView grid)
         {
             grid.BorderStyle = BorderStyle.None;
-            grid.BackgroundColor = Color.White;
+            grid.BackgroundColor = CardBg;
+            grid.GridColor = BorderSubtle;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             grid.EnableHeadersVisualStyles = false;
-            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(30, 41, 59);
+            grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+            grid.ColumnHeadersHeight = 42;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersDefaultCellStyle.BackColor = GridHeaderBg;
             grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            grid.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
-            grid.RowTemplate.Height = 30;
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(12, 0, 8, 0);
+            grid.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            grid.DefaultCellStyle.BackColor = CardBg;
+            grid.DefaultCellStyle.ForeColor = TextPrimary;
+            grid.DefaultCellStyle.Font = new Font("Segoe UI", 9.5F);
+            grid.DefaultCellStyle.Padding = new Padding(12, 4, 8, 4);
+            grid.DefaultCellStyle.SelectionBackColor = GridSelectionBg;
+            grid.DefaultCellStyle.SelectionForeColor = GridSelectionFg;
+            grid.AlternatingRowsDefaultCellStyle.BackColor = GridAltRow;
+            grid.AlternatingRowsDefaultCellStyle.ForeColor = TextPrimary;
+            grid.AlternatingRowsDefaultCellStyle.SelectionBackColor = GridSelectionBg;
+            grid.AlternatingRowsDefaultCellStyle.SelectionForeColor = GridSelectionFg;
+            grid.RowTemplate.Height = 36;
             grid.RowHeadersVisible = false;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
-        private void CenterStatLabel(Label lbl)
+        private void StyleStatLabel(Label lbl, Color accentColor)
         {
             lbl.Dock = DockStyle.Fill;
             lbl.TextAlign = ContentAlignment.MiddleCenter;
+            lbl.AutoSize = false;
+            lbl.Font = new Font("Segoe UI", 32F, FontStyle.Bold);
+            lbl.ForeColor = accentColor;
+        }
+
+        private void StyleStatusStrip()
+        {
+            statusStrip1.BackColor = CardBg;
+            statusStrip1.ForeColor = TextMuted;
+            statusStrip1.Font = new Font("Segoe UI", 9F);
+            statusStrip1.Padding = new Padding(12, 0, 8, 0);
+            statusStrip1.SizingGrip = false;
+            statusStrip1.RenderMode = ToolStripRenderMode.Professional;
+
+            lblSystemStatus.ForeColor = AccentGreen;
+            lblSystemStatus.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblSystemStatus.Margin = new Padding(4, 0, 12, 0);
+        }
+
+        private void StyleSecondaryButton(Button btn, Color backColor, Color foreColor, Color hoverColor)
+        {
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = hoverColor;
+            btn.BackColor = backColor;
+            btn.ForeColor = foreColor;
+            btn.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btn.Cursor = Cursors.Hand;
+            btn.UseVisualStyleBackColor = false;
+            btn.Padding = new Padding(12, 0, 12, 0);
         }
 
         // =================================================================
@@ -217,16 +408,19 @@ namespace PulseIO
                         int before = deviceCache.Count;
                         LoadConnectedDevices(forceRefresh: true);
                         int added = deviceCache.Count - before;
-                        if (added > 0) { _sessionConnects += added;
+                        if (added > 0)
+                        {
+                            _sessionConnects += added;
 
                             AddDeviceLog($"▶ {added} device(s) connected");
 
                             _historyManager.AddHistory(
-                                $"{added} device(s)", 
+                                $"{added} device(s)",
                                 "Connected");
                             RefreshHistory();
 
-                            RefreshReports(); }
+                            RefreshReports();
+                        }
                     }));
                 }, null, 600, System.Threading.Timeout.Infinite);
             }
@@ -237,16 +431,19 @@ namespace PulseIO
                     int before = deviceCache.Count;
                     LoadConnectedDevices(forceRefresh: true);
                     int removed = before - deviceCache.Count;
-                    if (removed > 0) { _sessionDisconnects += removed; 
+                    if (removed > 0)
+                    {
+                        _sessionDisconnects += removed;
 
-                        AddDeviceLog($"◀ {removed} device(s) disconnected"); 
+                        AddDeviceLog($"◀ {removed} device(s) disconnected");
 
                         _historyManager.AddHistory(
                             $"{removed} device(s)",
                             "Disconnected");
                         RefreshHistory();
 
-                        RefreshReports(); }
+                        RefreshReports();
+                    }
                 }));
             }
             else if (eventType == DBT_DEVNODES_CHANGED)
@@ -263,7 +460,9 @@ namespace PulseIO
                                 int before = deviceCache.Count;
                                 LoadConnectedDevices(forceRefresh: true);
                                 int delta = deviceCache.Count - before;
-                                if (delta > 0) { _sessionConnects += delta;
+                                if (delta > 0)
+                                {
+                                    _sessionConnects += delta;
                                     AddDeviceLog($"▶ {delta} HID device(s) connected");
 
                                     _historyManager.AddHistory(
@@ -271,9 +470,12 @@ namespace PulseIO
                                         "Connected");
                                     RefreshHistory();
 
-                                    RefreshReports(); }
+                                    RefreshReports();
+                                }
 
-                                if (delta < 0) { _sessionDisconnects += -delta;
+                                if (delta < 0)
+                                {
+                                    _sessionDisconnects += -delta;
                                     AddDeviceLog($"◀ {-delta} HID device(s) disconnected");
 
                                     _historyManager.AddHistory(
@@ -281,7 +483,8 @@ namespace PulseIO
                                         "Disconnected");
                                     RefreshHistory();
 
-                                    RefreshReports(); }
+                                    RefreshReports();
+                                }
                             }));
                         }, null, 800, System.Threading.Timeout.Infinite);
                     }
@@ -397,10 +600,16 @@ namespace PulseIO
         private void RebuildDeviceGrid()
         {
             dgvDevices.Rows.Clear();
+            string filterText = txtSearchDevices?.Text?.Trim()?.ToLower() ?? "";
             foreach (var kv in deviceCache)
             {
                 string name = kv.Value.Name;
                 string type = _deviceManager.ClassifyDevice(name.ToLower());
+                if (!string.IsNullOrEmpty(filterText))
+                {
+                    if (!name.ToLower().Contains(filterText) && !type.ToLower().Contains(filterText))
+                        continue;
+                }
                 uint errCode = kv.Value.ErrCode;
                 string status = errCode == 22 ? "Disabled" : "Active";
 
@@ -551,6 +760,7 @@ namespace PulseIO
 
         private void PollDiskIo(bool priming)
         {
+            UpdateCpuRam();
             try
             {
                 using (var searcher = new ManagementObjectSearcher(
@@ -768,6 +978,20 @@ namespace PulseIO
             }
         }
 
+        private void ClearHistory()
+        {
+            DialogResult result = MessageBox.Show(
+                "Are you sure you want to clear all history entries? This cannot be undone.",
+                "Clear History",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result != DialogResult.Yes)
+                return;
+
+            _historyManager.ClearHistory();
+            RefreshHistory();
+        }
 
         // =================================================================
         // TAB NAVIGATION
@@ -782,22 +1006,40 @@ namespace PulseIO
             txtReports.Visible = false;
             txtHistory.Visible = false;
             btnSaveReport.Visible = false;
+            btnClearHistory.Visible = false;
+            if (btnExportHistory != null) btnExportHistory.Visible = false;
+            if (grpSystemHealth != null) grpSystemHealth.Visible = false;
+            if (pnlLogsContainer != null) pnlLogsContainer.Visible = false;
+            if (pnlReportsContainer != null) pnlReportsContainer.Visible = false;
+            if (pnlHistoryContainer != null) pnlHistoryContainer.Visible = false;
         }
 
         private void ShowDashboard()
         {
             HideAllPanels();
+            SetActiveNavButton(btnDashboard);
             lblOverview.Visible = true;
             pnlStatistics.Visible = true;
+            if (grpSystemHealth != null) grpSystemHealth.Visible = true;
             grpDeviceTable.Visible = true;
             grpTransferActivity.Visible = true;
+
             grpDeviceTable.Dock = DockStyle.Top;
             grpTransferActivity.Dock = DockStyle.Top;
+            if (grpSystemHealth != null) grpSystemHealth.Dock = DockStyle.Top;
+
+            lblOverview.BringToFront();
+            pnlStatistics.BringToFront();
+            if (grpSystemHealth != null) grpSystemHealth.BringToFront();
+            pnlSeparator.BringToFront();
+            grpDeviceTable.BringToFront();
+            grpTransferActivity.BringToFront();
         }
 
         private void ShowDevices()
         {
             HideAllPanels();
+            SetActiveNavButton(btnDevices);
             grpDeviceTable.Dock = DockStyle.Fill;
             grpDeviceTable.Visible = true;
         }
@@ -805,6 +1047,7 @@ namespace PulseIO
         private void ShowTransfers()
         {
             HideAllPanels();
+            SetActiveNavButton(btnTransfers);
             grpTransferActivity.Dock = DockStyle.Fill;
             grpTransferActivity.Visible = true;
         }
@@ -812,13 +1055,17 @@ namespace PulseIO
         private void ShowLogs()
         {
             HideAllPanels();
+            SetActiveNavButton(btnLogs);
+            pnlLogsContainer.Visible = true;
             txtLogs.Visible = true;
         }
 
         private void ShowReports()
         {
             HideAllPanels();
+            SetActiveNavButton(btnReports);
             RefreshReports();
+            pnlReportsContainer.Visible = true;
             txtReports.Visible = true;
             btnSaveReport.Visible = true;
         }
@@ -826,10 +1073,12 @@ namespace PulseIO
         private void ShowHistory()
         {
             HideAllPanels();
-
+            SetActiveNavButton(btnHistory);
             RefreshHistory();
-
+            pnlHistoryContainer.Visible = true;
             txtHistory.Visible = true;
+            btnClearHistory.Visible = true;
+            if (btnExportHistory != null) btnExportHistory.Visible = true;
         }
 
         // =================================================================
@@ -852,76 +1101,143 @@ namespace PulseIO
 
         private void CreateLogsAndReportsControls()
         {
+            // ── Logs Container ──────────────────────────────────────────────
+            pnlLogsContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlLogsWrapper = new RoundedPanel
+            {
+                Dock = DockStyle.Fill,
+                FillColor = Color.FromArgb(15, 23, 42),
+                BorderColor = Color.FromArgb(30, 41, 59),
+                CornerRadius = 10,
+                Padding = new Padding(12)
+            };
             txtLogs = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
-                Font = new Font("Consolas", 9f),
-                BackColor = Color.Black,
-                ForeColor = Color.LimeGreen
+                Font = new Font("Consolas", 10F),
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.FromArgb(134, 239, 172),
+                BorderStyle = BorderStyle.None
             };
-            pnlMain.Controls.Add(txtLogs);
+            pnlLogsWrapper.Controls.Add(txtLogs);
+            pnlLogsContainer.Controls.Add(pnlLogsWrapper);
+            pnlMain.Controls.Add(pnlLogsContainer);
 
+            // ── Reports Container ───────────────────────────────────────────
+            pnlReportsContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlReportsWrapper = new RoundedPanel
+            {
+                Dock = DockStyle.Fill,
+                FillColor = Color.White,
+                BorderColor = Color.FromArgb(226, 232, 240),
+                CornerRadius = 10,
+                Padding = new Padding(12)
+            };
             txtReports = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
-                Font = new Font("Consolas", 9f),
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(30, 41, 59)
+                Font = new Font("Consolas", 10F),
+                BackColor = CardBg,
+                ForeColor = TextPrimary,
+                BorderStyle = BorderStyle.None
             };
-            pnlMain.Controls.Add(txtReports);
+            pnlReportsWrapper.Controls.Add(txtReports);
 
+            pnlReportsBottom = new Panel { Dock = DockStyle.Bottom, Height = 54, Padding = new Padding(0, 8, 0, 8) };
+            btnSaveReport = new ModernButton
+            {
+                Text = "Save Report",
+                Size = new Size(140, 38),
+                Dock = DockStyle.Right
+            };
+            StyleSecondaryButton(btnSaveReport, GridHeaderBg, Color.White, SidebarHover);
+            btnSaveReport.Click += (s, e) => SaveReport();
+            pnlReportsBottom.Controls.Add(btnSaveReport);
 
+            pnlReportsContainer.Controls.Add(pnlReportsWrapper);
+            pnlReportsContainer.Controls.Add(pnlReportsBottom);
+            pnlMain.Controls.Add(pnlReportsContainer);
+
+            // ── History Container ───────────────────────────────────────────
+            pnlHistoryContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlHistoryWrapper = new RoundedPanel
+            {
+                Dock = DockStyle.Fill,
+                FillColor = Color.White,
+                BorderColor = Color.FromArgb(226, 232, 240),
+                CornerRadius = 10,
+                Padding = new Padding(12)
+            };
             txtHistory = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
-                Font = new Font("Consolas", 9f),
-                BackColor = Color.White,
-                ForeColor = Color.Black
+                Font = new Font("Consolas", 10F),
+                BackColor = CardBg,
+                ForeColor = TextPrimary,
+                BorderStyle = BorderStyle.None
             };
-            pnlMain.Controls.Add(txtHistory);
+            pnlHistoryWrapper.Controls.Add(txtHistory);
 
-            btnSaveReport = new Button
+            pnlHistoryBottom = new Panel { Dock = DockStyle.Bottom, Height = 54, Padding = new Padding(0, 8, 0, 8) };
+
+            btnClearHistory = new ModernButton
             {
-                Text = "💾  Save Report",
-                Size = new Size(130, 32),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-                Visible = false,
-                BackColor = Color.FromArgb(30, 30, 60),
-                ForeColor = Color.Cyan,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f)
+                Text = "Clear History",
+                Size = new Size(140, 38),
+                Dock = DockStyle.Right
             };
-            btnSaveReport.Click += (s, e) => SaveReport();
-            pnlMain.Controls.Add(btnSaveReport);
-            btnSaveReport.BringToFront();
-        }
+            StyleSecondaryButton(btnClearHistory, GridHeaderBg, Color.White, SidebarHover);
+            btnClearHistory.Click += (s, e) => ClearHistory();
 
+            Panel pnlSpacer = new Panel { Dock = DockStyle.Right, Width = 12 };
+
+            btnExportHistory = new ModernButton
+            {
+                Text = "Export History",
+                Size = new Size(140, 38),
+                Dock = DockStyle.Right
+            };
+            StyleSecondaryButton(btnExportHistory, GridHeaderBg, Color.White, SidebarHover);
+            btnExportHistory.Click += (s, e) => ExportHistory();
+
+            pnlHistoryBottom.Controls.Add(btnExportHistory);
+            pnlHistoryBottom.Controls.Add(pnlSpacer);
+            pnlHistoryBottom.Controls.Add(btnClearHistory);
+
+            pnlHistoryContainer.Controls.Add(pnlHistoryWrapper);
+            pnlHistoryContainer.Controls.Add(pnlHistoryBottom);
+            pnlMain.Controls.Add(pnlHistoryContainer);
+        }
         private void CreateStatusBarControls()
         {
             // Buffer stats — live counters in the status bar (always visible, no panel needed)
             tsslBufferSize = new System.Windows.Forms.ToolStripStatusLabel
             {
                 Text = "Buffer: 0",
-                ForeColor = System.Drawing.Color.DimGray,
+                ForeColor = TextMuted,
                 BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Left,
-                Margin = new System.Windows.Forms.Padding(8, 0, 4, 0)
+                BorderStyle = Border3DStyle.Flat,
+                Margin = new System.Windows.Forms.Padding(12, 0, 8, 0),
+                Font = new Font("Segoe UI", 9F)
             };
 
             tsslFlushCount = new System.Windows.Forms.ToolStripStatusLabel
             {
                 Text = "Flushes: 0",
-                ForeColor = System.Drawing.Color.DimGray,
+                ForeColor = TextMuted,
                 BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Left,
-                Margin = new System.Windows.Forms.Padding(4, 0, 0, 0)
+                BorderStyle = Border3DStyle.Flat,
+                Margin = new System.Windows.Forms.Padding(8, 0, 0, 0),
+                Font = new Font("Segoe UI", 9F)
             };
 
             statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[]
@@ -938,6 +1254,8 @@ namespace PulseIO
             btnTransfers.Click += (s, e) => ShowTransfers();
             btnLogs.Click += (s, e) => ShowLogs();
             btnReports.Click += (s, e) => ShowReports();
+            btnHistory.Click += (s, e) => ShowHistory();
+            dgvDevices.CellDoubleClick += DgvDevices_CellDoubleClick;
         }
 
         // =================================================================
@@ -951,7 +1269,365 @@ namespace PulseIO
             uptimeTimer?.Stop();
             _bufferTimer?.Stop();
             dateTimeTimer?.Stop();
+            try { cpuCounter?.Dispose(); } catch { }
             base.OnFormClosing(e);
+        }
+
+        // ── Custom Setup & Additions ──────────────────────────────────────
+        private void InitializePerformanceCounters()
+        {
+            try
+            {
+                cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                cpuCounter.NextValue();
+            }
+            catch { }
+        }
+
+        private void CreateCpuRamCards()
+        {
+            grpCpuUsage = new ModernCard
+            {
+                Text = "CPU Usage",
+                Size = new Size(221, 120),
+                Margin = new Padding(8, 0, 8, 0)
+            };
+            lblCpuUsage = new Label();
+            grpCpuUsage.Controls.Add(lblCpuUsage);
+            StyleCard(grpCpuUsage);
+            StyleStatLabel(lblCpuUsage, AccentViolet);
+
+            grpRamUsage = new ModernCard
+            {
+                Text = "RAM Usage",
+                Size = new Size(221, 120),
+                Margin = new Padding(8, 0, 8, 0)
+            };
+            lblRamUsage = new Label();
+            grpRamUsage.Controls.Add(lblRamUsage);
+            StyleCard(grpRamUsage);
+            StyleStatLabel(lblRamUsage, AccentBlue);
+            lblRamUsage.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+
+            pnlStatistics.Controls.Add(grpCpuUsage);
+            pnlStatistics.Controls.Add(grpRamUsage);
+
+            pnlStatistics.WrapContents = true;
+            pnlStatistics.AutoScroll = true;
+            pnlStatistics.Height = 260;
+        }
+
+        private void CreateSearchControls()
+        {
+            lblSearchDevices = new Label
+            {
+                Text = "Search Devices:",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = TextMuted,
+                Size = new Size(110, 20),
+                Location = new Point(580, 25),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            txtSearchDevices = new TextBox
+            {
+                Font = new Font("Segoe UI", 9.5F),
+                Size = new Size(180, 25),
+                Location = new Point(700, 22),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            txtSearchDevices.TextChanged += (s, e) => RebuildDeviceGrid();
+
+            pnlHeader.Controls.Add(lblSearchDevices);
+            pnlHeader.Controls.Add(txtSearchDevices);
+        }
+
+        private void CreateSystemHealthSection()
+        {
+            grpSystemHealth = new ModernCard
+            {
+                Text = "System Health Status",
+                Height = 85,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 16)
+            };
+            StyleContentGroupBox(grpSystemHealth);
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 1,
+                BackColor = Color.Transparent
+            };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+
+            var pnlCpu = CreateHealthPanel("CPU LOAD", out lblHealthCpuVal, AccentViolet);
+            var pnlRam = CreateHealthPanel("RAM USAGE", out lblHealthRamVal, AccentBlue);
+            var pnlDevs = CreateHealthPanel("CONNECTED DEVICES", out lblHealthDevicesVal, AccentGreen);
+            var pnlXfers = CreateHealthPanel("ACTIVE TRANSFERS", out lblHealthTransfersVal, AccentAmber);
+
+            layout.Controls.Add(pnlCpu, 0, 0);
+            layout.Controls.Add(pnlRam, 1, 0);
+            layout.Controls.Add(pnlDevs, 2, 0);
+            layout.Controls.Add(pnlXfers, 3, 0);
+
+            grpSystemHealth.Controls.Add(layout);
+            pnlMain.Controls.Add(grpSystemHealth);
+        }
+
+        private Panel CreateHealthPanel(string title, out Label valLabel, Color valColor)
+        {
+            var pnl = new Panel { Dock = DockStyle.Fill };
+
+            var lblTitleText = new Label
+            {
+                Text = title,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = TextMuted,
+                Location = new Point(10, 10),
+                AutoSize = true
+            };
+
+            valLabel = new Label
+            {
+                Text = "--",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = valColor,
+                Location = new Point(10, 26),
+                AutoSize = true
+            };
+
+            pnl.Controls.Add(lblTitleText);
+            pnl.Controls.Add(valLabel);
+            return pnl;
+        }
+
+        private void PositionBottomButtons()
+        {
+            int rightMargin = 24;
+            int bottomMargin = 24;
+            int buttonHeight = 38;
+            int buttonWidth = 140;
+
+            int y = pnlMain.ClientSize.Height - buttonHeight - bottomMargin;
+            int xClear = pnlMain.ClientSize.Width - buttonWidth - rightMargin;
+            int xExport = xClear - buttonWidth - 12;
+            int xSaveReport = pnlMain.ClientSize.Width - buttonWidth - rightMargin;
+
+            if (btnClearHistory != null) btnClearHistory.Location = new Point(xClear, y);
+            if (btnExportHistory != null) btnExportHistory.Location = new Point(xExport, y);
+            if (btnSaveReport != null) btnSaveReport.Location = new Point(xSaveReport, y);
+        }
+
+        private void UpdateCpuRam()
+        {
+            try
+            {
+                // CPU
+                float cpuVal = 0;
+                if (cpuCounter != null)
+                {
+                    cpuVal = cpuCounter.NextValue();
+                }
+                lblCpuUsage.Text = $"{cpuVal:F0}%";
+                lblHealthCpuVal.Text = $"{cpuVal:F0}%";
+
+                // RAM
+                var computerInfo = new Microsoft.VisualBasic.Devices.ComputerInfo();
+                ulong totalPhys = computerInfo.TotalPhysicalMemory;
+                ulong availPhys = computerInfo.AvailablePhysicalMemory;
+                ulong usedPhys = totalPhys - availPhys;
+
+                double totalGB = totalPhys / (1024.0 * 1024.0 * 1024.0);
+                double usedGB = usedPhys / (1024.0 * 1024.0 * 1024.0);
+                double ramUsagePercent = (double)usedPhys / totalPhys * 100.0;
+
+                lblRamUsage.Text = $"{usedGB:F1} / {totalGB:F1} GB";
+                lblHealthRamVal.Text = $"{ramUsagePercent:F0}%";
+
+                // Connected Devices
+                lblHealthDevicesVal.Text = deviceCache.Count.ToString();
+
+                // Active Transfers
+                int active = 0;
+                foreach (DataGridViewRow r in dgvTransfers.Rows)
+                {
+                    string act = r.Cells["Activity"]?.Value?.ToString() ?? "";
+                    bool isIdle = act == "" || (act.Contains("< 0.01") && act.LastIndexOf("< 0.01") != act.IndexOf("< 0.01"));
+                    if (!isIdle) active++;
+                }
+                lblHealthTransfersVal.Text = active.ToString();
+            }
+            catch { }
+        }
+
+        private void DgvDevices_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var row = dgvDevices.Rows[e.RowIndex];
+            string deviceName = row.Cells["DeviceName"].Value?.ToString();
+            if (string.IsNullOrEmpty(deviceName)) return;
+
+            var cachedEntry = deviceCache.FirstOrDefault(kv => kv.Value.Name == deviceName);
+            string pnpId = cachedEntry.Key ?? "N/A";
+            DateTime connectedAt = cachedEntry.Value.ConnectedAt != default
+                ? cachedEntry.Value.ConnectedAt
+                : DateTime.Now;
+            uint errCode = cachedEntry.Value.ErrCode;
+            string status = errCode == 22 ? "Disabled" : "Active";
+            string deviceType = row.Cells["DeviceType"].Value?.ToString() ?? "Unknown";
+
+            string manufacturer = "Unknown";
+            if (pnpId != "N/A")
+            {
+                try
+                {
+                    string escapedId = pnpId.Replace("\\", "\\\\");
+                    using (var searcher = new ManagementObjectSearcher(
+                        $"SELECT Manufacturer FROM Win32_PnPEntity WHERE PNPDeviceID = '{escapedId}'"))
+                    {
+                        foreach (ManagementObject device in searcher.Get())
+                        {
+                            manufacturer = device["Manufacturer"]?.ToString() ?? "Unknown";
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            using (var detailsForm = new DeviceDetailsForm(deviceName, deviceType, status, connectedAt, pnpId, manufacturer))
+            {
+                detailsForm.ShowDialog(this);
+            }
+        }
+
+        private void ExportHistory()
+        {
+            using (var dlg = new SaveFileDialog
+            {
+                Title = "Export History Log",
+                Filter = "CSV files (*.csv)|*.csv|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                FileName = $"PulseIO_History_{DateTime.Now:yyyyMMdd_HHmmss}"
+            })
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        string ext = Path.GetExtension(dlg.FileName).ToLower();
+                        var history = _historyManager.GetHistory();
+                        if (ext == ".csv")
+                        {
+                            var sb = new StringBuilder();
+                            sb.AppendLine("Timestamp,DeviceName,EventType");
+                            foreach (var entry in history)
+                            {
+                                string name = EscapeCsv(entry.DeviceName);
+                                string evt = EscapeCsv(entry.EventType);
+                                sb.AppendLine($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss},{name},{evt}");
+                            }
+                            File.WriteAllText(dlg.FileName, sb.ToString(), Encoding.UTF8);
+                        }
+                        else
+                        {
+                            var sb = new StringBuilder();
+                            foreach (var entry in history)
+                            {
+                                sb.AppendLine($"[{entry.Timestamp:MM/dd/yyyy HH:mm:ss}] {entry.EventType} - {entry.DeviceName}");
+                            }
+                            File.WriteAllText(dlg.FileName, sb.ToString(), Encoding.UTF8);
+                        }
+                        AddDeviceLog($"History successfully exported to {Path.GetFileName(dlg.FileName)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to export history: {ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private string EscapeCsv(string val)
+        {
+            if (string.IsNullOrEmpty(val)) return "";
+            if (val.Contains(",") || val.Contains("\"") || val.Contains("\n") || val.Contains("\r"))
+            {
+                return $"\"{val.Replace("\"", "\"\"")}\"";
+            }
+            return val;
+        }
+
+        private void CreateBrandingLogo()
+        {
+            var pnlBranding = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 80,
+                Padding = new Padding(16, 10, 16, 10)
+            };
+
+            pnlBranding.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Draw pulse line logo in neon Indigo
+                using (var pen = new Pen(Color.FromArgb(99, 102, 241), 2))
+                {
+                    var points = new Point[]
+                    {
+                        new Point(16, 40),
+                        new Point(30, 40),
+                        new Point(35, 20),
+                        new Point(40, 60),
+                        new Point(45, 35),
+                        new Point(50, 45),
+                        new Point(55, 40),
+                        new Point(70, 40)
+                    };
+                    g.DrawLines(pen, points);
+                }
+
+                // Draw glow
+                using (var penGlow = new Pen(Color.FromArgb(40, 99, 102, 241), 4))
+                {
+                    var points = new Point[]
+                    {
+                        new Point(16, 40),
+                        new Point(30, 40),
+                        new Point(35, 20),
+                        new Point(40, 60),
+                        new Point(45, 35),
+                        new Point(50, 45),
+                        new Point(55, 40),
+                        new Point(70, 40)
+                    };
+                    g.DrawLines(penGlow, points);
+                }
+
+                // Title
+                using (var font = new Font("Segoe UI", 16F, FontStyle.Bold))
+                using (var brush = new SolidBrush(Color.White))
+                {
+                    g.DrawString("PulseIO", font, brush, new PointF(80, 24));
+                }
+            };
+
+            pnlNavigation.Controls.Add(pnlBranding);
+            pnlBranding.BringToFront();
+
+            // Re-stack nav buttons under branding
+            btnDashboard.BringToFront();
+            btnDevices.BringToFront();
+            btnTransfers.BringToFront();
+            btnLogs.BringToFront();
+            btnReports.BringToFront();
+            btnHistory.BringToFront();
         }
     }
 }
