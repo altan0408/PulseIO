@@ -213,34 +213,37 @@ namespace PulseIO
         private void StyleHeaderPanel()
         {
             pnlHeader.BackColor = CardBg;
-            pnlHeader.Padding = new Padding(24, 16, 24, 16);
+            pnlHeader.Padding = new Padding(24, 8, 24, 8);
             pnlHeader.Paint += (s, e) =>
             {
                 using (var pen = new Pen(BorderSubtle))
                     e.Graphics.DrawLine(pen, 0, pnlHeader.Height - 1, pnlHeader.Width, pnlHeader.Height - 1);
             };
 
-            lblTitle.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
+            lblTitle.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
             lblTitle.ForeColor = TextPrimary;
             lblTitle.AutoSize = true;
+            lblTitle.Location = new Point(24, 7);
 
-            lblSubtitle.Font = new Font("Segoe UI", 10F);
+            lblSubtitle.Font = new Font("Segoe UI", 9F);
             lblSubtitle.ForeColor = TextMuted;
             lblSubtitle.AutoSize = true;
+            lblSubtitle.Location = new Point(26, 30);
 
             lblDateTime.Font = new Font("Segoe UI", 10F);
             lblDateTime.ForeColor = TextMuted;
             lblDateTime.TextAlign = ContentAlignment.MiddleRight;
             lblDateTime.AutoSize = false;
-            lblDateTime.Width = 260;
+            lblDateTime.Width = 220;
             lblDateTime.Height = 28;
+            lblDateTime.Location = new Point(pnlHeader.Width - 24 - lblDateTime.Width, 12);
             lblDateTime.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         }
 
         private void StyleSidebar()
         {
             pnlNavigation.BackColor = SidebarBg;
-            pnlNavigation.Padding = new Padding(12, 20, 12, 12);
+            pnlNavigation.Padding = new Padding(12, 12, 12, 12);
             pnlNavigation.Paint += (s, e) =>
             {
                 using (var pen = new Pen(Color.FromArgb(30, 41, 59)))
@@ -295,7 +298,7 @@ namespace PulseIO
             grp.ForeColor = TextMuted;
             grp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             grp.Padding = new Padding(16, 12, 16, 16);
-            grp.Margin = new Padding(8, 0, 8, 0);
+            grp.Margin = new Padding(0, 6, 20, 6);
             if (!(grp is ModernCard))
                 ApplyFlatGroupBoxPaint(grp);
         }
@@ -331,24 +334,24 @@ namespace PulseIO
             grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             grid.EnableHeadersVisualStyles = false;
             grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
-            grid.ColumnHeadersHeight = 42;
+            grid.ColumnHeadersHeight = 44;
             grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             grid.ColumnHeadersDefaultCellStyle.BackColor = GridHeaderBg;
             grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(12, 0, 8, 0);
+            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(14, 0, 10, 0);
             grid.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             grid.DefaultCellStyle.BackColor = CardBg;
             grid.DefaultCellStyle.ForeColor = TextPrimary;
             grid.DefaultCellStyle.Font = new Font("Segoe UI", 9.5F);
-            grid.DefaultCellStyle.Padding = new Padding(12, 4, 8, 4);
+            grid.DefaultCellStyle.Padding = new Padding(14, 6, 10, 6);
             grid.DefaultCellStyle.SelectionBackColor = GridSelectionBg;
             grid.DefaultCellStyle.SelectionForeColor = GridSelectionFg;
             grid.AlternatingRowsDefaultCellStyle.BackColor = GridAltRow;
             grid.AlternatingRowsDefaultCellStyle.ForeColor = TextPrimary;
             grid.AlternatingRowsDefaultCellStyle.SelectionBackColor = GridSelectionBg;
             grid.AlternatingRowsDefaultCellStyle.SelectionForeColor = GridSelectionFg;
-            grid.RowTemplate.Height = 36;
+            grid.RowTemplate.Height = 40;
             grid.RowHeadersVisible = false;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
@@ -1290,7 +1293,7 @@ namespace PulseIO
             {
                 Text = "CPU Usage",
                 Size = new Size(221, 120),
-                Margin = new Padding(8, 0, 8, 0)
+                Margin = new Padding(0, 6, 20, 6)
             };
             lblCpuUsage = new Label();
             grpCpuUsage.Controls.Add(lblCpuUsage);
@@ -1301,7 +1304,7 @@ namespace PulseIO
             {
                 Text = "RAM Usage",
                 Size = new Size(221, 120),
-                Margin = new Padding(8, 0, 8, 0)
+                Margin = new Padding(0, 6, 0, 6)
             };
             lblRamUsage = new Label();
             grpRamUsage.Controls.Add(lblRamUsage);
@@ -1313,27 +1316,38 @@ namespace PulseIO
             pnlStatistics.Controls.Add(grpRamUsage);
 
             pnlStatistics.WrapContents = true;
-            pnlStatistics.AutoScroll = true;
-            pnlStatistics.Height = 260;
+            pnlStatistics.AutoScroll = false;
+            pnlStatistics.Height = 268;
         }
 
         private void CreateSearchControls()
         {
+            int rowY = lblDateTime.Top;             // align with datetime row
+            int gapFromDateTime = 16;
+            int searchBoxWidth = 170;
+            int searchBoxHeight = 24;
+            int labelWidth = 100;
+            int labelGap = 8;
+
+            int searchBoxX = lblDateTime.Left - gapFromDateTime - searchBoxWidth;
+            int labelX = searchBoxX - labelGap - labelWidth;
+
             lblSearchDevices = new Label
             {
                 Text = "Search Devices:",
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = TextMuted,
-                Size = new Size(110, 20),
-                Location = new Point(580, 25),
+                Size = new Size(labelWidth, searchBoxHeight),
+                Location = new Point(labelX, rowY + 2),
+                TextAlign = ContentAlignment.MiddleRight,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
             txtSearchDevices = new TextBox
             {
-                Font = new Font("Segoe UI", 9.5F),
-                Size = new Size(180, 25),
-                Location = new Point(700, 22),
+                Font = new Font("Segoe UI", 9F),
+                Size = new Size(searchBoxWidth, searchBoxHeight),
+                Location = new Point(searchBoxX, rowY),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
@@ -1348,8 +1362,9 @@ namespace PulseIO
             grpSystemHealth = new ModernCard
             {
                 Text = "System Health Status",
-                Height = 85,
+                Height = 112,
                 Dock = DockStyle.Top,
+                Padding = new Padding(16, 28, 16, 16),
                 Margin = new Padding(0, 0, 0, 16)
             };
             StyleContentGroupBox(grpSystemHealth);
@@ -1389,7 +1404,7 @@ namespace PulseIO
                 Text = title,
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 ForeColor = TextMuted,
-                Location = new Point(10, 10),
+                Location = new Point(10, 6),
                 AutoSize = true
             };
 
@@ -1398,7 +1413,7 @@ namespace PulseIO
                 Text = "--",
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = valColor,
-                Location = new Point(10, 26),
+                Location = new Point(10, 28),
                 AutoSize = true
             };
 
@@ -1567,8 +1582,8 @@ namespace PulseIO
             var pnlBranding = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
-                Padding = new Padding(16, 10, 16, 10)
+                Height = 56,
+                Padding = new Padding(16, 8, 16, 8)
             };
 
             pnlBranding.Paint += (s, e) =>
@@ -1576,46 +1591,28 @@ namespace PulseIO
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                // Draw pulse line logo in neon Indigo
-                using (var pen = new Pen(Color.FromArgb(99, 102, 241), 2))
-                {
-                    var points = new Point[]
-                    {
-                        new Point(16, 40),
-                        new Point(30, 40),
-                        new Point(35, 20),
-                        new Point(40, 60),
-                        new Point(45, 35),
-                        new Point(50, 45),
-                        new Point(55, 40),
-                        new Point(70, 40)
-                    };
-                    g.DrawLines(pen, points);
-                }
+                int midY = pnlBranding.Height / 2;
 
-                // Draw glow
+                // Draw pulse line icon mark (compact, vertically centered, icon-only —
+                // the "PulseIO" wordmark already appears in the header, so the sidebar
+                // mark stays icon-only to avoid duplicating the brand name twice)
+                var points = new Point[]
+                {
+                    new Point(16, midY),
+                    new Point(26, midY),
+                    new Point(30, midY - 12),
+                    new Point(34, midY + 14),
+                    new Point(38, midY - 8),
+                    new Point(42, midY + 6),
+                    new Point(46, midY),
+                    new Point(58, midY)
+                };
+
                 using (var penGlow = new Pen(Color.FromArgb(40, 99, 102, 241), 4))
-                {
-                    var points = new Point[]
-                    {
-                        new Point(16, 40),
-                        new Point(30, 40),
-                        new Point(35, 20),
-                        new Point(40, 60),
-                        new Point(45, 35),
-                        new Point(50, 45),
-                        new Point(55, 40),
-                        new Point(70, 40)
-                    };
                     g.DrawLines(penGlow, points);
-                }
 
-                // Title
-                using (var font = new Font("Segoe UI", 16F, FontStyle.Bold))
-                using (var brush = new SolidBrush(Color.White))
-                {
-                    g.DrawString("PulseIO", font, brush, new PointF(80, 24));
-                }
+                using (var pen = new Pen(Color.FromArgb(99, 102, 241), 2))
+                    g.DrawLines(pen, points);
             };
 
             pnlNavigation.Controls.Add(pnlBranding);
