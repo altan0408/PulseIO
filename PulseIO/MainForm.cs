@@ -101,22 +101,22 @@ namespace PulseIO
         private readonly object _hidLock = new object();
 
         // ── Theme palette (UI only) ─────────────────────────────────────
-        private static readonly Color SidebarBg = Color.FromArgb(15, 23, 42);
-        private static readonly Color SidebarHover = Color.FromArgb(30, 41, 59);
-        private static readonly Color SidebarActive = Color.FromArgb(51, 65, 85);
+        private static readonly Color SidebarBg = Color.FromArgb(47, 72, 88);
+        private static readonly Color SidebarHover = Color.FromArgb(78, 88, 123);
+        private static readonly Color SidebarActive = Color.FromArgb(132, 98, 144);
         private static readonly Color ContentBg = Color.FromArgb(241, 245, 249);
         private static readonly Color CardBg = Color.White;
-        private static readonly Color TextPrimary = Color.FromArgb(30, 41, 59);
-        private static readonly Color TextMuted = Color.FromArgb(100, 116, 139);
+        private static readonly Color TextPrimary = Color.FromArgb(47, 72, 88);
+        private static readonly Color TextMuted = Color.FromArgb(78, 88, 123);
         private static readonly Color BorderSubtle = Color.FromArgb(226, 232, 240);
-        private static readonly Color GridHeaderBg = Color.FromArgb(30, 41, 59);
+        private static readonly Color GridHeaderBg = Color.FromArgb(47, 72, 88);
         private static readonly Color GridAltRow = Color.FromArgb(248, 250, 252);
-        private static readonly Color GridSelectionBg = Color.FromArgb(219, 234, 254);
-        private static readonly Color GridSelectionFg = Color.FromArgb(30, 41, 59);
-        private static readonly Color AccentBlue = Color.FromArgb(37, 99, 235);
-        private static readonly Color AccentViolet = Color.FromArgb(124, 58, 237);
-        private static readonly Color AccentGreen = Color.FromArgb(22, 163, 74);
-        private static readonly Color AccentAmber = Color.FromArgb(217, 119, 6);
+        private static readonly Color GridSelectionBg = Color.FromArgb(132, 98, 144);
+        private static readonly Color GridSelectionFg = Color.White;
+        private static readonly Color AccentBlue = Color.FromArgb(132, 98, 144);
+        private static readonly Color AccentViolet = Color.FromArgb(190, 106, 141);
+        private static readonly Color AccentGreen = Color.FromArgb(243, 159, 90);
+        private static readonly Color AccentAmber = Color.FromArgb(231, 124, 119);
 
         private Button _activeNavButton;
 
@@ -213,7 +213,7 @@ namespace PulseIO
         private void StyleHeaderPanel()
         {
             pnlHeader.BackColor = CardBg;
-            pnlHeader.Padding = new Padding(24, 8, 24, 8);
+            pnlHeader.Padding = new Padding(24, 16, 24, 16);
             pnlHeader.Paint += (s, e) =>
             {
                 using (var pen = new Pen(BorderSubtle))
@@ -223,12 +223,12 @@ namespace PulseIO
             lblTitle.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
             lblTitle.ForeColor = TextPrimary;
             lblTitle.AutoSize = true;
-            lblTitle.Location = new Point(24, 7);
+            lblTitle.Location = new Point(24, 12);
 
             lblSubtitle.Font = new Font("Segoe UI", 9F);
             lblSubtitle.ForeColor = TextMuted;
             lblSubtitle.AutoSize = true;
-            lblSubtitle.Location = new Point(26, 30);
+            lblSubtitle.Location = new Point(26, 42);
 
             lblDateTime.Font = new Font("Segoe UI", 10F);
             lblDateTime.ForeColor = TextMuted;
@@ -236,7 +236,7 @@ namespace PulseIO
             lblDateTime.AutoSize = false;
             lblDateTime.Width = 220;
             lblDateTime.Height = 28;
-            lblDateTime.Location = new Point(pnlHeader.Width - 24 - lblDateTime.Width, 12);
+            lblDateTime.Location = new Point(pnlHeader.Width - 24 - lblDateTime.Width, 24);
             lblDateTime.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         }
 
@@ -246,7 +246,7 @@ namespace PulseIO
             pnlNavigation.Padding = new Padding(12, 12, 12, 12);
             pnlNavigation.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(30, 41, 59)))
+                using (var pen = new Pen(SidebarBg))
                     e.Graphics.DrawLine(pen, pnlNavigation.Width - 1, 0, pnlNavigation.Width - 1, pnlNavigation.Height);
             };
         }
@@ -257,10 +257,10 @@ namespace PulseIO
             btn.FlatAppearance.BorderSize = 0;
             btn.FlatAppearance.MouseOverBackColor = SidebarHover;
             btn.FlatAppearance.MouseDownBackColor = SidebarActive;
-            btn.Height = 46;
-            btn.Margin = new Padding(0, 0, 0, 6);
+            btn.Height = 48;
+            btn.Margin = new Padding(0, 0, 0, 8);
             btn.BackColor = SidebarBg;
-            btn.ForeColor = Color.FromArgb(203, 213, 225);
+            btn.ForeColor = Color.White;
             btn.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btn.Cursor = Cursors.Hand;
             btn.TextAlign = ContentAlignment.MiddleLeft;
@@ -284,7 +284,7 @@ namespace PulseIO
             if (_activeNavButton != null)
             {
                 _activeNavButton.BackColor = SidebarBg;
-                _activeNavButton.ForeColor = Color.FromArgb(203, 213, 225);
+                _activeNavButton.ForeColor = Color.White;
             }
 
             _activeNavButton = active;
@@ -297,8 +297,8 @@ namespace PulseIO
             grp.BackColor = CardBg;
             grp.ForeColor = TextMuted;
             grp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            grp.Padding = new Padding(16, 12, 16, 16);
-            grp.Margin = new Padding(0, 6, 20, 6);
+            grp.Padding = new Padding(20, 16, 20, 20);
+            grp.Margin = new Padding(0, 0, 16, 0);
             if (!(grp is ModernCard))
                 ApplyFlatGroupBoxPaint(grp);
         }
@@ -308,7 +308,7 @@ namespace PulseIO
             grp.BackColor = CardBg;
             grp.ForeColor = TextPrimary;
             grp.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-            grp.Padding = new Padding(16, 8, 16, 16);
+            grp.Padding = new Padding(20, 16, 20, 20);
             grp.Margin = new Padding(0, 0, 0, 16);
             if (!(grp is ModernCard))
                 ApplyFlatGroupBoxPaint(grp);
