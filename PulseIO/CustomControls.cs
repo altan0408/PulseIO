@@ -23,6 +23,7 @@ namespace PulseIO
             base.OnPaint(e);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.CompositingQuality = CompositingQuality.HighQuality;
 
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
             if (rect.Width <= 0 || rect.Height <= 0) return;
@@ -63,9 +64,9 @@ namespace PulseIO
 
     public class ModernCard : GroupBox
     {
-        public int CornerRadius { get; set; } = 10;
+        public int CornerRadius { get; set; } = 12;
         public Color BorderColor { get; set; } = Color.FromArgb(226, 232, 240);
-        public Color HeaderTextColor { get; set; } = Color.FromArgb(100, 116, 139);
+        public Color HeaderTextColor { get; set; } = Color.FromArgb(78, 88, 123);
         public Color FillColor { get; set; } = Color.White;
 
         public ModernCard()
@@ -78,6 +79,7 @@ namespace PulseIO
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.CompositingQuality = CompositingQuality.HighQuality;
 
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
             if (rect.Width <= 0 || rect.Height <= 0) return;
@@ -100,10 +102,10 @@ namespace PulseIO
             // Draw header text
             if (!string.IsNullOrEmpty(this.Text))
             {
-                using (var font = new Font("Segoe UI", 9.5F, FontStyle.Bold))
+                using (var font = new Font("Segoe UI", 10F, FontStyle.Bold))
                 using (var brush = new SolidBrush(HeaderTextColor))
                 {
-                    g.DrawString(this.Text, font, brush, new PointF(16, 12));
+                    g.DrawString(this.Text, font, brush, new PointF(16, 14));
                 }
             }
         }
@@ -127,9 +129,9 @@ namespace PulseIO
 
     public class ModernButton : Button
     {
-        public int CornerRadius { get; set; } = 6;
-        public Color HoverBackColor { get; set; } = Color.FromArgb(30, 41, 59);
-        public Color ActiveBackColor { get; set; } = Color.FromArgb(51, 65, 85);
+        public int CornerRadius { get; set; } = 8;
+        public Color HoverBackColor { get; set; } = Color.FromArgb(78, 88, 123);
+        public Color ActiveBackColor { get; set; } = Color.FromArgb(132, 98, 144);
         private bool isHovered = false;
         private bool isPressed = false;
 
@@ -139,6 +141,7 @@ namespace PulseIO
             this.FlatStyle = FlatStyle.Flat;
             this.FlatAppearance.BorderSize = 0;
             this.Cursor = Cursors.Hand;
+            this.BackColor = Color.Transparent;
         }
 
         protected override void OnMouseEnter(EventArgs e)
@@ -173,19 +176,35 @@ namespace PulseIO
         {
             var g = pevent.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.CompositingQuality = CompositingQuality.HighQuality;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+            // Clear the background to prevent white corners
+            g.Clear(Parent?.BackColor ?? Color.Transparent);
 
             Color bg = this.BackColor;
             if (isPressed) bg = ActiveBackColor;
             else if (isHovered) bg = HoverBackColor;
+            else bg = Color.Transparent;
 
-            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            var rect = new Rectangle(0, 0, Width, Height);
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
             using (var path = GetRoundedPath(rect, CornerRadius))
             {
-                using (var brush = new SolidBrush(bg))
+                // Fill background with parent color first to eliminate artifacts
+                using (var parentBrush = new SolidBrush(Parent?.BackColor ?? Color.Transparent))
                 {
-                    g.FillPath(brush, path);
+                    g.FillRectangle(parentBrush, rect);
+                }
+
+                // Draw the button background
+                if (bg != Color.Transparent)
+                {
+                    using (var brush = new SolidBrush(bg))
+                    {
+                        g.FillPath(brush, path);
+                    }
                 }
             }
 
@@ -196,7 +215,7 @@ namespace PulseIO
                 this.Font,
                 new Rectangle(0, 0, Width, Height),
                 this.ForeColor,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.Left
             );
         }
 

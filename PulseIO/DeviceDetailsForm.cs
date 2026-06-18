@@ -47,7 +47,7 @@ namespace PulseIO
             {
                 Text = "Device Diagnostics",
                 Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(47, 72, 88),
                 AutoSize = true,
                 Location = new Point(20, 12)
             };
@@ -56,7 +56,7 @@ namespace PulseIO
             {
                 Text = "Detailed hardware metadata from WMI provider",
                 Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(100, 116, 139),
+                ForeColor = Color.FromArgb(78, 88, 123),
                 AutoSize = true,
                 Location = new Point(22, 42)
             };
@@ -105,13 +105,13 @@ namespace PulseIO
                 Size = new Size(100, 38),
                 Location = new Point(415, 385),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(30, 41, 59),
+                BackColor = Color.FromArgb(47, 72, 88),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderSize = 0;
-            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(15, 23, 42);
+            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(78, 88, 123);
             btnClose.Click += (s, e) => this.Close();
 
             this.Controls.Add(pnlHeader);
@@ -126,7 +126,7 @@ namespace PulseIO
             {
                 Text = labelText,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(100, 116, 139),
+                ForeColor = Color.FromArgb(78, 88, 123),
                 Location = new Point(15, y),
                 Size = new Size(120, 20),
                 TextAlign = ContentAlignment.MiddleLeft
@@ -136,7 +136,7 @@ namespace PulseIO
             {
                 Text = valueText,
                 Font = new Font("Segoe UI", 9.5F),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(47, 72, 88),
                 Location = new Point(140, y),
                 Size = new Size(335, isLongText ? 40 : 20),
                 TextAlign = ContentAlignment.MiddleLeft
