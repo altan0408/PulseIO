@@ -30,6 +30,8 @@ namespace PulseIO
 
             using (var path = GetRoundedPath(rect, CornerRadius))
             {
+                g.SetClip(path);
+
                 using (var brush = new SolidBrush(FillColor))
                 {
                     g.FillPath(brush, path);
@@ -42,6 +44,8 @@ namespace PulseIO
                         g.DrawPath(pen, path);
                     }
                 }
+
+                g.ResetClip();
             }
         }
 
