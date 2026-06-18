@@ -45,6 +45,15 @@ namespace PulseIO
         private Label lblHealthDevicesVal;
         private Label lblHealthTransfersVal;
 
+        // ── Computer Information Section ──────────────────────────────────
+        private ModernCard grpComputerInfo;
+        private Label lblComputerName;
+        private Label lblWindowsVersion;
+        private Label lblCpuModel;
+        private Label lblTotalRam;
+        private Label lblWifiSsid;
+        private Label lblLocalIp;
+
         // ── Device Search Controls ────────────────────────────────────────
         private TextBox txtSearchDevices;
         private Label lblSearchDevices;
@@ -133,6 +142,7 @@ namespace PulseIO
             CreateCpuRamCards();
             CreateSearchControls();
             CreateSystemHealthSection();
+            CreateComputerInfoSection();
             CreateBrandingLogo();
 
             _bufferManager = new BufferManager(txtLogs, tsslBufferSize, tsslFlushCount, this);
@@ -1012,6 +1022,7 @@ namespace PulseIO
             btnClearHistory.Visible = false;
             if (btnExportHistory != null) btnExportHistory.Visible = false;
             if (grpSystemHealth != null) grpSystemHealth.Visible = false;
+            if (grpComputerInfo != null) grpComputerInfo.Visible = false;
             if (pnlLogsContainer != null) pnlLogsContainer.Visible = false;
             if (pnlReportsContainer != null) pnlReportsContainer.Visible = false;
             if (pnlHistoryContainer != null) pnlHistoryContainer.Visible = false;
@@ -1024,16 +1035,19 @@ namespace PulseIO
             lblOverview.Visible = true;
             pnlStatistics.Visible = true;
             if (grpSystemHealth != null) grpSystemHealth.Visible = true;
+            if (grpComputerInfo != null) grpComputerInfo.Visible = true;
             grpDeviceTable.Visible = true;
             grpTransferActivity.Visible = true;
 
             grpDeviceTable.Dock = DockStyle.Top;
             grpTransferActivity.Dock = DockStyle.Top;
             if (grpSystemHealth != null) grpSystemHealth.Dock = DockStyle.Top;
+            if (grpComputerInfo != null) grpComputerInfo.Dock = DockStyle.Top;
 
             lblOverview.BringToFront();
             pnlStatistics.BringToFront();
             if (grpSystemHealth != null) grpSystemHealth.BringToFront();
+            if (grpComputerInfo != null) grpComputerInfo.BringToFront();
             pnlSeparator.BringToFront();
             grpDeviceTable.BringToFront();
             grpTransferActivity.BringToFront();
@@ -1395,6 +1409,183 @@ namespace PulseIO
             pnlMain.Controls.Add(grpSystemHealth);
         }
 
+        private void CreateComputerInfoSection()
+        {
+            grpComputerInfo = new ModernCard
+            {
+                Text = "Computer Information",
+                Height = 180,
+                Dock = DockStyle.Top,
+                Padding = new Padding(20, 16, 20, 20),
+                Margin = new Padding(0, 0, 0, 16)
+            };
+            StyleContentGroupBox(grpComputerInfo);
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 3,
+                BackColor = Color.Transparent
+            };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+
+            lblComputerName = CreateInfoLabel();
+            lblWindowsVersion = CreateInfoLabel();
+            lblCpuModel = CreateInfoLabel();
+            lblTotalRam = CreateInfoLabel();
+            lblWifiSsid = CreateInfoLabel();
+            lblLocalIp = CreateInfoLabel();
+
+            var pnlComputerName = CreateInfoPanel("Computer Name", lblComputerName);
+            var pnlWindowsVersion = CreateInfoPanel("Windows Version", lblWindowsVersion);
+            var pnlCpuModel = CreateInfoPanel("CPU Model", lblCpuModel);
+            var pnlTotalRam = CreateInfoPanel("Total RAM", lblTotalRam);
+            var pnlWifiSsid = CreateInfoPanel("Wi-Fi SSID", lblWifiSsid);
+            var pnlLocalIp = CreateInfoPanel("Local IP", lblLocalIp);
+
+            layout.Controls.Add(pnlComputerName, 0, 0);
+            layout.Controls.Add(pnlWindowsVersion, 1, 0);
+            layout.Controls.Add(pnlCpuModel, 0, 1);
+            layout.Controls.Add(pnlTotalRam, 1, 1);
+            layout.Controls.Add(pnlWifiSsid, 0, 2);
+            layout.Controls.Add(pnlLocalIp, 1, 2);
+
+            grpComputerInfo.Controls.Add(layout);
+            pnlMain.Controls.Add(grpComputerInfo);
+
+            PopulateComputerInfo();
+        }
+
+        private Panel CreateInfoPanel(string title, Label valueLabel)
+        {
+            var pnl = new Panel { Dock = DockStyle.Fill };
+
+            var lblTitle = new Label
+            {
+                Text = title,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = TextMuted,
+                Location = new Point(8, 4),
+                AutoSize = true
+            };
+
+            valueLabel.Location = new Point(8, 22);
+            valueLabel.AutoSize = true;
+
+            pnl.Controls.Add(lblTitle);
+            pnl.Controls.Add(valueLabel);
+            return pnl;
+        }
+
+        private Label CreateInfoLabel()
+        {
+            return new Label
+            {
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = TextPrimary,
+                AutoSize = true
+            };
+        }
+
+        private void PopulateComputerInfo()
+        {
+            try
+            {
+                lblComputerName.Text = Environment.MachineName;
+                lblWindowsVersion.Text = Environment.OSVersion.VersionString;
+
+                var cpuName = GetCpuName();
+                lblCpuModel.Text = cpuName ?? "Unknown CPU";
+
+                var totalRam = GetTotalRam();
+                lblTotalRam.Text = totalRam ?? "Unknown";
+
+                var wifiSsid = GetWifiSsid();
+                lblWifiSsid.Text = wifiSsid ?? "Not connected";
+
+                var localIp = GetLocalIpAddress();
+                lblLocalIp.Text = localIp ?? "Unknown";
+            }
+            catch (Exception ex)
+            {
+                AddDiskLog("Error populating computer info: " + ex.Message);
+            }
+        }
+
+        private string GetCpuName()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        return obj["Name"]?.ToString();
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private string GetTotalRam()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT TotalPhysicalMemory FROM Win32_ComputerSystem"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        ulong totalMemory = (ulong)obj["TotalPhysicalMemory"];
+                        double gb = totalMemory / (1024.0 * 1024.0 * 1024.0);
+                        return $"{gb:F1} GB";
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private string GetWifiSsid()
+        {
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher("SELECT SSID FROM Win32_NetworkAdapter WHERE NetConnectionStatus = 2"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        var ssid = obj["SSID"]?.ToString();
+                        if (!string.IsNullOrEmpty(ssid))
+                            return ssid;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private string GetLocalIpAddress()
+        {
+            try
+            {
+                var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        return ip.ToString();
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
         private Panel CreateHealthPanel(string title, out Label valLabel, Color valColor)
         {
             var pnl = new Panel { Dock = DockStyle.Fill };
@@ -1579,33 +1770,30 @@ namespace PulseIO
 
         private void CreateBrandingLogo()
         {
-            var pnlBranding = new Panel
+            var pnlLogo = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = 56,
-                Padding = new Padding(16, 8, 16, 8)
+                Size = new Size(48, 48),
+                Location = new Point(24, 16)
             };
 
-            pnlBranding.Paint += (s, e) =>
+            pnlLogo.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                int midY = pnlBranding.Height / 2;
+                int midY = pnlLogo.Height / 2;
 
-                // Draw pulse line icon mark (compact, vertically centered, icon-only —
-                // the "PulseIO" wordmark already appears in the header, so the sidebar
-                // mark stays icon-only to avoid duplicating the brand name twice)
+                // Draw pulse line icon mark
                 var points = new Point[]
                 {
-                    new Point(16, midY),
-                    new Point(26, midY),
-                    new Point(30, midY - 12),
-                    new Point(34, midY + 14),
-                    new Point(38, midY - 8),
-                    new Point(42, midY + 6),
-                    new Point(46, midY),
-                    new Point(58, midY)
+                    new Point(4, midY),
+                    new Point(14, midY),
+                    new Point(18, midY - 12),
+                    new Point(22, midY + 14),
+                    new Point(26, midY - 8),
+                    new Point(30, midY + 6),
+                    new Point(34, midY),
+                    new Point(46, midY)
                 };
 
                 using (var penGlow = new Pen(Color.FromArgb(40, 99, 102, 241), 4))
@@ -1615,16 +1803,12 @@ namespace PulseIO
                     g.DrawLines(pen, points);
             };
 
-            pnlNavigation.Controls.Add(pnlBranding);
-            pnlBranding.BringToFront();
+            pnlHeader.Controls.Add(pnlLogo);
+            pnlLogo.BringToFront();
 
-            // Re-stack nav buttons under branding
-            btnDashboard.BringToFront();
-            btnDevices.BringToFront();
-            btnTransfers.BringToFront();
-            btnLogs.BringToFront();
-            btnReports.BringToFront();
-            btnHistory.BringToFront();
+            // Adjust title and subtitle positions to be to the right of the logo
+            lblTitle.Location = new Point(80, 12);
+            lblSubtitle.Location = new Point(82, 42);
         }
     }
 }

@@ -185,7 +185,8 @@ namespace PulseIO
             Color bg = this.BackColor;
             if (isPressed) bg = ActiveBackColor;
             else if (isHovered) bg = HoverBackColor;
-            else bg = Color.Transparent;
+            // If BackColor is transparent and not hovered/pressed, keep it transparent
+            // Otherwise use the set BackColor
 
             var rect = new Rectangle(0, 0, Width, Height);
             if (rect.Width <= 0 || rect.Height <= 0) return;
