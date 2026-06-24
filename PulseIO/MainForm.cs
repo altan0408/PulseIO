@@ -22,13 +22,21 @@ namespace PulseIO
         private ModernButton btnClearHistory;
         private ModernButton btnExportHistory;
 
+        // ── Dashboard spacer panels (DockStyle.Top ignores Margin) ───────
+        private Panel _spacer1; // after pnlStatistics
+        private Panel _spacer2; // after grpSystemHealth
+        private Panel _spacer3; // after grpComputerInfo
+        private Panel _spacer4; // after grpDeviceTable
+
         // ── View Containers and Wrapper Panels ────────────────────────────
         private Panel pnlLogsContainer;
         private Panel pnlReportsContainer;
         private Panel pnlHistoryContainer;
+        private Panel pnlAboutContainer;
         private RoundedPanel pnlLogsWrapper;
         private RoundedPanel pnlReportsWrapper;
         private RoundedPanel pnlHistoryWrapper;
+        private RoundedPanel pnlAboutWrapper;
         private Panel pnlReportsBottom;
         private Panel pnlHistoryBottom;
 
@@ -113,14 +121,14 @@ namespace PulseIO
         private static readonly Color SidebarBg = Color.FromArgb(47, 72, 88);
         private static readonly Color SidebarHover = Color.FromArgb(78, 88, 123);
         private static readonly Color SidebarActive = Color.FromArgb(132, 98, 144);
-        private static readonly Color ContentBg = Color.FromArgb(241, 245, 249);
-        private static readonly Color CardBg = Color.White;
-        private static readonly Color TextPrimary = Color.FromArgb(47, 72, 88);
-        private static readonly Color TextMuted = Color.FromArgb(78, 88, 123);
-        private static readonly Color BorderSubtle = Color.FromArgb(226, 232, 240);
+        private static readonly Color ContentBg = Color.FromArgb(15, 23, 42);
+        private static readonly Color CardBg = Color.FromArgb(30, 41, 59);
+        private static readonly Color TextPrimary = Color.FromArgb(226, 232, 240);
+        private static readonly Color TextMuted = Color.FromArgb(148, 163, 184);
+        private static readonly Color BorderSubtle = Color.FromArgb(51, 65, 85);
         private static readonly Color GridHeaderBg = Color.FromArgb(47, 72, 88);
-        private static readonly Color GridAltRow = Color.FromArgb(248, 250, 252);
-        private static readonly Color GridSelectionBg = Color.FromArgb(132, 98, 144);
+        private static readonly Color GridAltRow = Color.FromArgb(15, 23, 42);
+        private static readonly Color GridSelectionBg = Color.FromArgb(37, 99, 235);
         private static readonly Color GridSelectionFg = Color.White;
         private static readonly Color AccentBlue = Color.FromArgb(132, 98, 144);
         private static readonly Color AccentViolet = Color.FromArgb(190, 106, 141);
@@ -136,6 +144,7 @@ namespace PulseIO
             ApplyModernTheme();
             InitializeDataGridViewColumns();
             CreateLogsAndReportsControls();
+            CreateAboutControl();
             CreateStatusBarControls();
 
             InitializePerformanceCounters();
@@ -144,6 +153,7 @@ namespace PulseIO
             CreateSystemHealthSection();
             CreateComputerInfoSection();
             CreateBrandingLogo();
+            CreateDashboardSpacers();
 
             _bufferManager = new BufferManager(txtLogs, tsslBufferSize, tsslFlushCount, this);
             _deviceManager = new DeviceManager();
@@ -184,9 +194,10 @@ namespace PulseIO
             StyleNavButton(btnLogs);
             StyleNavButton(btnReports);
             StyleNavButton(btnHistory);
+            StyleNavButton(btnAbout);
             SetActiveNavButton(btnDashboard);
 
-            pnlMain.BackColor = ContentBg;
+            pnlMain.BackColor = Color.FromArgb(15, 23, 42);
 
             lblOverview.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
             lblOverview.ForeColor = TextPrimary;
@@ -204,6 +215,8 @@ namespace PulseIO
 
             StyleContentGroupBox(grpDeviceTable);
             StyleContentGroupBox(grpTransferActivity);
+            grpDeviceTable.BackColor = CardBg;
+            grpTransferActivity.BackColor = CardBg;
 
             StyleGrid(dgvDevices);
             StyleGrid(dgvTransfers);
@@ -305,11 +318,17 @@ namespace PulseIO
         private void StyleCard(GroupBox grp)
         {
             grp.BackColor = CardBg;
-            grp.ForeColor = TextMuted;
+            grp.ForeColor = Color.FromArgb(203, 213, 225);
             grp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             grp.Padding = new Padding(20, 16, 20, 20);
             grp.Margin = new Padding(0, 0, 16, 0);
-            if (!(grp is ModernCard))
+            if (grp is ModernCard card)
+            {
+                card.FillColor = CardBg;
+                card.BorderColor = BorderSubtle;
+                card.HeaderTextColor = Color.FromArgb(203, 213, 225);
+            }
+            else
                 ApplyFlatGroupBoxPaint(grp);
         }
 
@@ -635,13 +654,144 @@ namespace PulseIO
 
                 string xferRate = IsStorageType(type) ? "Idle" : "N/A";
 
-                int rowIdx = dgvDevices.Rows.Add(name, type, status, xferRate, uptimeStr);
+                // Get device icon
+                Bitmap icon = GetDeviceIcon(type);
+
+                // Format last connected time
+                string lastConnected = kv.Value.ConnectedAt.ToString("MM/dd/yyyy HH:mm:ss");
+
+                // Create status badge text
+                string statusBadge = errCode == 22 ? "⚪ Disabled" : "🟢 Connected";
+
+                int rowIdx = dgvDevices.Rows.Add(icon, name, type, statusBadge, lastConnected, uptimeStr, xferRate);
 
                 var row = dgvDevices.Rows[rowIdx];
                 if (errCode == 22)
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 200);
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(80, 60, 20);
+                    row.DefaultCellStyle.ForeColor = Color.FromArgb(255, 200, 100);
+                }
                 else
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(30, 41, 59);
+                    row.DefaultCellStyle.ForeColor = Color.FromArgb(226, 232, 240);
+                }
+            }
+        }
+
+        private Bitmap GetDeviceIcon(string deviceType)
+        {
+            try
+            {
+                // Create simple icons based on device type
+                Bitmap icon = new Bitmap(32, 32);
+                using (Graphics g = Graphics.FromImage(icon))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.Clear(Color.Transparent);
+
+                    Color iconColor;
+                    switch (deviceType.ToLower())
+                    {
+                        case "usb":
+                            iconColor = Color.FromArgb(59, 130, 246);
+                            break;
+                        case "bluetooth":
+                            iconColor = Color.FromArgb(37, 99, 235);
+                            break;
+                        case "keyboard":
+                            iconColor = Color.FromArgb(99, 102, 241);
+                            break;
+                        case "mouse":
+                            iconColor = Color.FromArgb(139, 92, 246);
+                            break;
+                        case "storage":
+                            iconColor = Color.FromArgb(16, 185, 129);
+                            break;
+                        case "audio":
+                            iconColor = Color.FromArgb(245, 158, 11);
+                            break;
+                        case "wi-fi":
+                            iconColor = Color.FromArgb(14, 165, 233);
+                            break;
+                        case "hid":
+                            iconColor = Color.FromArgb(107, 114, 128);
+                            break;
+                        default:
+                            iconColor = Color.FromArgb(156, 163, 175);
+                            break;
+                    }
+
+                    // Draw simple icon based on type
+                    using (Pen pen = new Pen(iconColor, 2))
+                    using (SolidBrush brush = new SolidBrush(iconColor))
+                    {
+                        switch (deviceType.ToLower())
+                        {
+                            case "usb":
+                                g.DrawRectangle(pen, 6, 8, 20, 16);
+                                g.FillRectangle(brush, 8, 10, 16, 12);
+                                g.DrawRectangle(pen, 10, 4, 12, 4);
+                                break;
+                            case "bluetooth":
+                                g.DrawLines(pen, new Point[] { new Point(16, 4), new Point(16, 28) });
+                                g.DrawLines(pen, new Point[] { new Point(4, 16), new Point(28, 16) });
+                                g.DrawLines(pen, new Point[] { new Point(8, 8), new Point(24, 24) });
+                                g.DrawLines(pen, new Point[] { new Point(24, 8), new Point(8, 24) });
+                                break;
+                            case "keyboard":
+                                g.DrawRectangle(pen, 4, 8, 24, 16);
+                                for (int i = 0; i < 4; i++)
+                                    for (int j = 0; j < 3; j++)
+                                        g.FillRectangle(brush, 6 + i * 6, 10 + j * 4, 4, 2);
+                                break;
+                            case "mouse":
+                                g.DrawEllipse(pen, 6, 10, 20, 12);
+                                g.FillEllipse(brush, 8, 12, 16, 8);
+                                g.DrawLine(pen, 16, 22, 16, 28);
+                                g.DrawLine(pen, 16, 28, 12, 28);
+                                g.DrawLine(pen, 16, 28, 20, 28);
+                                break;
+                            case "storage":
+                                g.DrawRectangle(pen, 4, 10, 24, 12);
+                                g.FillRectangle(brush, 6, 12, 20, 8);
+                                g.DrawRectangle(pen, 8, 14, 16, 4);
+                                break;
+                            case "audio":
+                                g.DrawEllipse(pen, 6, 8, 20, 16);
+                                g.FillEllipse(brush, 8, 10, 16, 12);
+                                g.DrawRectangle(pen, 26, 14, 4, 4);
+                                break;
+                            case "wi-fi":
+                                g.DrawArc(pen, 6, 6, 20, 20, 180, 180);
+                                g.DrawArc(pen, 10, 10, 12, 12, 180, 180);
+                                g.FillEllipse(brush, 14, 14, 4, 4);
+                                break;
+                            default:
+                                g.DrawRectangle(pen, 8, 8, 16, 16);
+                                g.FillRectangle(brush, 10, 10, 12, 12);
+                                break;
+                        }
+                    }
+                }
+                return icon;
+            }
+            catch
+            {
+                // Return a default icon if there's an error
+                Bitmap defaultIcon = new Bitmap(32, 32);
+                using (Graphics g = Graphics.FromImage(defaultIcon))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.Clear(Color.Transparent);
+                    using (Pen pen = new Pen(Color.Gray, 2))
+                    using (SolidBrush brush = new SolidBrush(Color.Gray))
+                    {
+                        g.DrawRectangle(pen, 8, 8, 16, 16);
+                        g.FillRectangle(brush, 10, 10, 12, 12);
+                    }
+                }
+                return defaultIcon;
             }
         }
 
@@ -748,7 +898,7 @@ namespace PulseIO
                             ? $"{(int)uptime.TotalMinutes}m {uptime.Seconds:D2}s"
                             : $"{(int)uptime.TotalHours}h {uptime.Minutes:D2}m";
 
-                    row.Cells["Uptime"].Value = uptimeStr;
+                    row.Cells["ConnectedDuration"].Value = uptimeStr;
                 }
             };
             uptimeTimer.Start();
@@ -820,7 +970,10 @@ namespace PulseIO
                             DateTime.Now.ToString("HH:mm:ss"));
 
                         if (diskTime > 80)
-                            dgvTransfers.Rows[rowIdx].DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 180);
+                        {
+                            dgvTransfers.Rows[rowIdx].DefaultCellStyle.BackColor = Color.FromArgb(80, 50, 20);
+                            dgvTransfers.Rows[rowIdx].DefaultCellStyle.ForeColor = Color.FromArgb(255, 180, 80);
+                        }
 
                         if (dgvTransfers.Rows.Count > 0)
                             dgvTransfers.FirstDisplayedScrollingRowIndex = dgvTransfers.Rows.Count - 1;
@@ -1026,18 +1179,28 @@ namespace PulseIO
             if (pnlLogsContainer != null) pnlLogsContainer.Visible = false;
             if (pnlReportsContainer != null) pnlReportsContainer.Visible = false;
             if (pnlHistoryContainer != null) pnlHistoryContainer.Visible = false;
+            if (pnlAboutContainer != null) pnlAboutContainer.Visible = false;
+            if (_spacer1 != null) _spacer1.Visible = false;
+            if (_spacer2 != null) _spacer2.Visible = false;
+            if (_spacer3 != null) _spacer3.Visible = false;
+            if (_spacer4 != null) _spacer4.Visible = false;
         }
 
         private void ShowDashboard()
         {
             HideAllPanels();
             SetActiveNavButton(btnDashboard);
+            pnlMain.BackColor = Color.FromArgb(15, 23, 42);
             lblOverview.Visible = true;
             pnlStatistics.Visible = true;
             if (grpSystemHealth != null) grpSystemHealth.Visible = true;
             if (grpComputerInfo != null) grpComputerInfo.Visible = true;
             grpDeviceTable.Visible = true;
             grpTransferActivity.Visible = true;
+            if (_spacer1 != null) _spacer1.Visible = true;
+            if (_spacer2 != null) _spacer2.Visible = true;
+            if (_spacer3 != null) _spacer3.Visible = true;
+            if (_spacer4 != null) _spacer4.Visible = true;
 
             grpDeviceTable.Dock = DockStyle.Top;
             grpTransferActivity.Dock = DockStyle.Top;
@@ -1046,10 +1209,14 @@ namespace PulseIO
 
             lblOverview.BringToFront();
             pnlStatistics.BringToFront();
+            if (_spacer1 != null) _spacer1.BringToFront();
             if (grpSystemHealth != null) grpSystemHealth.BringToFront();
+            if (_spacer2 != null) _spacer2.BringToFront();
             if (grpComputerInfo != null) grpComputerInfo.BringToFront();
+            if (_spacer3 != null) _spacer3.BringToFront();
             pnlSeparator.BringToFront();
             grpDeviceTable.BringToFront();
+            if (_spacer4 != null) _spacer4.BringToFront();
             grpTransferActivity.BringToFront();
         }
 
@@ -1098,16 +1265,50 @@ namespace PulseIO
             if (btnExportHistory != null) btnExportHistory.Visible = true;
         }
 
+        private void ShowAbout()
+        {
+            HideAllPanels();
+            SetActiveNavButton(btnAbout);
+            pnlAboutContainer.Visible = true;
+        }
+
         // =================================================================
         // INITIALIZATION
         // =================================================================
         private void InitializeDataGridViewColumns()
         {
+            // Devices DataGridView with improved columns
+            var colIcon = new DataGridViewImageColumn
+            {
+                Name = "DeviceIcon",
+                HeaderText = "",
+                Width = 40,
+                ImageLayout = DataGridViewImageCellLayout.Zoom
+            };
+            dgvDevices.Columns.Add(colIcon);
+
             dgvDevices.Columns.Add("DeviceName", "Device Name");
             dgvDevices.Columns.Add("DeviceType", "Device Type");
             dgvDevices.Columns.Add("Status", "Status");
+            dgvDevices.Columns.Add("LastConnected", "Last Connected");
+            dgvDevices.Columns.Add("ConnectedDuration", "Connected Duration");
             dgvDevices.Columns.Add("TransferRate", "Transfer Rate");
-            dgvDevices.Columns.Add("Uptime", "Connected For");
+
+            // Configure column widths and styles
+            dgvDevices.Columns["DeviceName"].Width = 220;
+            dgvDevices.Columns["DeviceType"].Width = 130;
+            dgvDevices.Columns["Status"].Width = 110;
+            dgvDevices.Columns["LastConnected"].Width = 150;
+            dgvDevices.Columns["ConnectedDuration"].Width = 130;
+            dgvDevices.Columns["TransferRate"].Width = 130;
+            dgvDevices.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
+            // Set row height and styling
+            dgvDevices.RowTemplate.Height = 50;
+            dgvDevices.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 32, 51);
+            dgvDevices.AlternatingRowsDefaultCellStyle.ForeColor = Color.FromArgb(226, 232, 240);
+            dgvDevices.DefaultCellStyle.BackColor = Color.FromArgb(30, 41, 59);
+            dgvDevices.DefaultCellStyle.ForeColor = Color.FromArgb(226, 232, 240);
 
             dgvTransfers.Columns.Add("Disk", "Disk");
             dgvTransfers.Columns.Add("IoMethod", "I/O Method");
@@ -1119,12 +1320,12 @@ namespace PulseIO
         private void CreateLogsAndReportsControls()
         {
             // ── Logs Container ──────────────────────────────────────────────
-            pnlLogsContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlLogsContainer = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(15, 23, 42) };
             pnlLogsWrapper = new RoundedPanel
             {
                 Dock = DockStyle.Fill,
-                FillColor = Color.FromArgb(15, 23, 42),
-                BorderColor = Color.FromArgb(30, 41, 59),
+                FillColor = Color.FromArgb(30, 41, 59),
+                BorderColor = Color.FromArgb(51, 65, 85),
                 CornerRadius = 10,
                 Padding = new Padding(12)
             };
@@ -1135,8 +1336,8 @@ namespace PulseIO
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
                 Font = new Font("Consolas", 10F),
-                BackColor = Color.FromArgb(15, 23, 42),
-                ForeColor = Color.FromArgb(134, 239, 172),
+                BackColor = Color.FromArgb(22, 32, 51),
+                ForeColor = Color.FromArgb(203, 213, 225),
                 BorderStyle = BorderStyle.None
             };
             pnlLogsWrapper.Controls.Add(txtLogs);
@@ -1144,12 +1345,12 @@ namespace PulseIO
             pnlMain.Controls.Add(pnlLogsContainer);
 
             // ── Reports Container ───────────────────────────────────────────
-            pnlReportsContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlReportsContainer = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(15, 23, 42) };
             pnlReportsWrapper = new RoundedPanel
             {
                 Dock = DockStyle.Fill,
-                FillColor = Color.White,
-                BorderColor = Color.FromArgb(226, 232, 240),
+                FillColor = Color.FromArgb(30, 41, 59),
+                BorderColor = Color.FromArgb(51, 65, 85),
                 CornerRadius = 10,
                 Padding = new Padding(12)
             };
@@ -1160,8 +1361,8 @@ namespace PulseIO
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
                 Font = new Font("Consolas", 10F),
-                BackColor = CardBg,
-                ForeColor = TextPrimary,
+                BackColor = Color.FromArgb(22, 32, 51),
+                ForeColor = Color.FromArgb(203, 213, 225),
                 BorderStyle = BorderStyle.None
             };
             pnlReportsWrapper.Controls.Add(txtReports);
@@ -1182,12 +1383,12 @@ namespace PulseIO
             pnlMain.Controls.Add(pnlReportsContainer);
 
             // ── History Container ───────────────────────────────────────────
-            pnlHistoryContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlHistoryContainer = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(15, 23, 42) };
             pnlHistoryWrapper = new RoundedPanel
             {
                 Dock = DockStyle.Fill,
-                FillColor = Color.White,
-                BorderColor = Color.FromArgb(226, 232, 240),
+                FillColor = Color.FromArgb(30, 41, 59),
+                BorderColor = Color.FromArgb(51, 65, 85),
                 CornerRadius = 10,
                 Padding = new Padding(12)
             };
@@ -1198,8 +1399,8 @@ namespace PulseIO
                 ScrollBars = ScrollBars.Vertical,
                 Dock = DockStyle.Fill,
                 Font = new Font("Consolas", 10F),
-                BackColor = CardBg,
-                ForeColor = TextPrimary,
+                BackColor = Color.FromArgb(22, 32, 51),
+                ForeColor = Color.FromArgb(203, 213, 225),
                 BorderStyle = BorderStyle.None
             };
             pnlHistoryWrapper.Controls.Add(txtHistory);
@@ -1233,6 +1434,170 @@ namespace PulseIO
             pnlHistoryContainer.Controls.Add(pnlHistoryWrapper);
             pnlHistoryContainer.Controls.Add(pnlHistoryBottom);
             pnlMain.Controls.Add(pnlHistoryContainer);
+        }
+
+        private void CreateAboutControl()
+        {
+            // ── About Container ───────────────────────────────────────────────
+            pnlAboutContainer = new Panel { Dock = DockStyle.Fill, Visible = false };
+            pnlAboutWrapper = new RoundedPanel
+            {
+                Dock = DockStyle.Fill,
+                FillColor = Color.FromArgb(30, 41, 59),
+                BorderColor = Color.FromArgb(99, 102, 241),
+                CornerRadius = 10,
+                Padding = new Padding(40)
+            };
+
+            // Logo panel
+            var pnlLogo = new Panel
+            {
+                Size = new Size(80, 80),
+                Location = new Point(40, 40)
+            };
+
+            pnlLogo.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                int midY = pnlLogo.Height / 2;
+
+                // Draw pulse line icon
+                var points = new Point[]
+                {
+                    new Point(8, midY),
+                    new Point(24, midY),
+                    new Point(30, midY - 20),
+                    new Point(36, midY + 24),
+                    new Point(42, midY - 14),
+                    new Point(48, midY + 10),
+                    new Point(54, midY),
+                    new Point(72, midY)
+                };
+
+                using (var penGlow = new Pen(Color.FromArgb(40, 99, 102, 241), 6))
+                    g.DrawLines(penGlow, points);
+
+                using (var pen = new Pen(Color.FromArgb(99, 102, 241), 3))
+                    g.DrawLines(pen, points);
+            };
+
+            // Application name
+            var lblAppName = new Label
+            {
+                Text = "PulseIO",
+                Font = new Font("Segoe UI", 28F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(140, 40),
+                AutoSize = true
+            };
+
+            // Author label
+            var lblAuthorAbout = new Label
+            {
+                Text = "Andrea Tan",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = new Point(140, 75),
+                AutoSize = true
+            };
+
+            // Subtitle
+            var lblCreator = new Label
+            {
+                Text = "I/O Device Transfer and Monitoring System",
+                Font = new Font("Segoe UI", 11F),
+                ForeColor = Color.FromArgb(203, 213, 225),
+                Location = new Point(140, 95),
+                AutoSize = true
+            };
+
+            // Description
+            var lblDescription = new Label
+            {
+                Text = "Real-time I/O device monitoring and management system for Windows",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(203, 213, 225),
+                Location = new Point(40, 140),
+                Size = new Size(600, 20),
+                AutoSize = true
+            };
+
+            // Project subtitle
+            var lblProject = new Label
+            {
+                Text = "Operating Systems I/O Management Project",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(99, 102, 241),
+                Location = new Point(40, 170),
+                AutoSize = true
+            };
+
+            // Technologies section
+            var lblTechTitle = new Label
+            {
+                Text = "Technologies Used",
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = new Point(40, 220),
+                AutoSize = true
+            };
+
+            var lblTechContent = new Label
+            {
+                Text = "• C#\n• Windows Forms\n• WMI (Windows Management Instrumentation)\n• Windows Performance Counters",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(203, 213, 225),
+                Location = new Point(40, 250),
+                Size = new Size(400, 80),
+                AutoSize = false
+            };
+
+            // Features section
+            var lblFeaturesTitle = new Label
+            {
+                Text = "Main Features",
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = new Point(40, 350),
+                AutoSize = true
+            };
+
+            var lblFeaturesContent = new Label
+            {
+                Text = "• Device Monitoring\n• Device Detection\n• Transfer Logging\n• Reports\n• History\n• CPU Monitoring\n• RAM Monitoring\n• Device Details",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(203, 213, 225),
+                Location = new Point(40, 380),
+                Size = new Size(400, 160),
+                AutoSize = false
+            };
+
+            // Version
+            var lblVersion = new Label
+            {
+                Text = "Version 1.0",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = new Point(40, 556),
+                AutoSize = true
+            };
+
+            pnlAboutWrapper.Controls.Add(pnlLogo);
+            pnlAboutWrapper.Controls.Add(lblAppName);
+            pnlAboutWrapper.Controls.Add(lblAuthorAbout);
+            pnlAboutWrapper.Controls.Add(lblCreator);
+            pnlAboutWrapper.Controls.Add(lblDescription);
+            pnlAboutWrapper.Controls.Add(lblProject);
+            pnlAboutWrapper.Controls.Add(lblTechTitle);
+            pnlAboutWrapper.Controls.Add(lblTechContent);
+            pnlAboutWrapper.Controls.Add(lblFeaturesTitle);
+            pnlAboutWrapper.Controls.Add(lblFeaturesContent);
+            pnlAboutWrapper.Controls.Add(lblVersion);
+
+            pnlAboutContainer.Controls.Add(pnlAboutWrapper);
+            pnlMain.Controls.Add(pnlAboutContainer);
         }
         private void CreateStatusBarControls()
         {
@@ -1272,6 +1637,7 @@ namespace PulseIO
             btnLogs.Click += (s, e) => ShowLogs();
             btnReports.Click += (s, e) => ShowReports();
             btnHistory.Click += (s, e) => ShowHistory();
+            btnAbout.Click += (s, e) => ShowAbout();
             dgvDevices.CellDoubleClick += DgvDevices_CellDoubleClick;
         }
 
@@ -1307,7 +1673,8 @@ namespace PulseIO
             {
                 Text = "CPU Usage",
                 Size = new Size(221, 120),
-                Margin = new Padding(0, 6, 20, 6)
+                Margin = new Padding(0, 6, 20, 6),
+                HeaderTextColor = Color.FromArgb(203, 213, 225)
             };
             lblCpuUsage = new Label();
             grpCpuUsage.Controls.Add(lblCpuUsage);
@@ -1318,7 +1685,8 @@ namespace PulseIO
             {
                 Text = "RAM Usage",
                 Size = new Size(221, 120),
-                Margin = new Padding(0, 6, 0, 6)
+                Margin = new Padding(0, 6, 0, 6),
+                HeaderTextColor = Color.FromArgb(203, 213, 225)
             };
             lblRamUsage = new Label();
             grpRamUsage.Controls.Add(lblRamUsage);
@@ -1350,7 +1718,7 @@ namespace PulseIO
             {
                 Text = "Search Devices:",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = TextMuted,
+                ForeColor = Color.FromArgb(203, 213, 225),
                 Size = new Size(labelWidth, searchBoxHeight),
                 Location = new Point(labelX, rowY + 2),
                 TextAlign = ContentAlignment.MiddleRight,
@@ -1362,7 +1730,10 @@ namespace PulseIO
                 Font = new Font("Segoe UI", 9F),
                 Size = new Size(searchBoxWidth, searchBoxHeight),
                 Location = new Point(searchBoxX, rowY),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
             txtSearchDevices.TextChanged += (s, e) => RebuildDeviceGrid();
@@ -1379,9 +1750,12 @@ namespace PulseIO
                 Height = 112,
                 Dock = DockStyle.Top,
                 Padding = new Padding(16, 28, 16, 16),
-                Margin = new Padding(0, 0, 0, 16)
+                Margin = new Padding(0, 0, 0, 16),
+                HeaderTextColor = Color.FromArgb(203, 213, 225)
             };
             StyleContentGroupBox(grpSystemHealth);
+            grpSystemHealth.BackColor = CardBg;
+            if (grpSystemHealth is ModernCard shCard) { shCard.FillColor = CardBg; shCard.BorderColor = BorderSubtle; }
 
             var layout = new TableLayoutPanel
             {
@@ -1417,9 +1791,12 @@ namespace PulseIO
                 Height = 180,
                 Dock = DockStyle.Top,
                 Padding = new Padding(20, 16, 20, 20),
-                Margin = new Padding(0, 0, 0, 16)
+                Margin = new Padding(0, 0, 0, 16),
+                HeaderTextColor = Color.FromArgb(203, 213, 225)
             };
             StyleContentGroupBox(grpComputerInfo);
+            grpComputerInfo.BackColor = CardBg;
+            if (grpComputerInfo is ModernCard ciCard) { ciCard.FillColor = CardBg; ciCard.BorderColor = BorderSubtle; }
 
             var layout = new TableLayoutPanel
             {
@@ -1487,7 +1864,7 @@ namespace PulseIO
             return new Label
             {
                 Font = new Font("Segoe UI", 9F),
-                ForeColor = TextPrimary,
+                ForeColor = Color.FromArgb(203, 213, 225),
                 AutoSize = true
             };
         }
@@ -1768,6 +2145,29 @@ namespace PulseIO
             return val;
         }
 
+        private Panel MakeSpacer()
+        {
+            return new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 16,
+                BackColor = Color.FromArgb(15, 23, 42)
+            };
+        }
+
+        private void CreateDashboardSpacers()
+        {
+            _spacer1 = MakeSpacer(); // between pnlStatistics and grpSystemHealth
+            _spacer2 = MakeSpacer(); // between grpSystemHealth and grpComputerInfo
+            _spacer3 = MakeSpacer(); // between grpComputerInfo and grpDeviceTable
+            _spacer4 = MakeSpacer(); // between grpDeviceTable and grpTransferActivity
+
+            pnlMain.Controls.Add(_spacer1);
+            pnlMain.Controls.Add(_spacer2);
+            pnlMain.Controls.Add(_spacer3);
+            pnlMain.Controls.Add(_spacer4);
+        }
+
         private void CreateBrandingLogo()
         {
             var pnlLogo = new Panel
@@ -1806,9 +2206,11 @@ namespace PulseIO
             pnlHeader.Controls.Add(pnlLogo);
             pnlLogo.BringToFront();
 
-            // Adjust title and subtitle positions to be to the right of the logo
-            lblTitle.Location = new Point(80, 12);
-            lblSubtitle.Location = new Point(82, 42);
+            // Adjust title, subtitle, and author positions to be to the right of the logo
+            lblTitle.Location = new Point(80, 10);
+            lblSubtitle.Location = new Point(82, 40);
+            lblAuthor.Location = new Point(82, 58);
+            lblAuthor.ForeColor = Color.FromArgb(148, 163, 184);
         }
     }
 }
